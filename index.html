@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Controle de Bags</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- BIBLIOTECA QR CODE FIXA E CONFIÁVEL -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     @page { size: A4 portrait; margin: 0; }
     
-    /* REGRAS RÍGIDAS DE IMPRESSÃO - FORÇA O EXIBIMENTO DOS QR CODES */
+    /* REGRAS RÍGIDAS DE IMPRESSÃO */
     @media print {
       body * { visibility: hidden !important; }
       .no-print { display: none !important; }
@@ -53,6 +54,7 @@
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        max-width: 100% !important;
       }
     }
 
@@ -100,7 +102,6 @@
             <input type="text" id="numBag" readonly class="w-full border-2 border-blue-400 bg-blue-50 font-mono font-bold text-lg text-blue-800 rounded-lg p-2.5 text-center cursor-not-allowed" value="Carregando...">
           </div>
           
-          <!-- MATÉRIA-PRIMA COM FIXO "CAIXARIA" -->
           <div>
             <label class="block text-sm font-semibold mb-1">Matéria-Prima</label>
             <select id="materialSelect" onchange="tratarSelecao('materialSelect', 'materialOutro')" class="w-full border rounded-lg p-2.5 bg-white">
@@ -110,7 +111,6 @@
             <input type="text" id="materialOutro" placeholder="Digite a matéria-prima..." class="w-full border rounded-lg p-2.5 mt-2 hidden">
           </div>
           
-          <!-- SELEÇÃO DE CORES EM ORDEM ALFABÉTICA -->
           <div>
             <label class="block text-sm font-semibold mb-1">Cor</label>
             <select id="corSelect" onchange="tratarSelecao('corSelect', 'corOutra')" class="w-full border rounded-lg p-2.5 bg-white">
@@ -140,7 +140,6 @@
             <input type="text" id="fornecedor" required placeholder="Ex: Braskem" class="w-full border rounded-lg p-2.5">
           </div>
           
-          <!-- MÃO DE OBRA / OPERADOR COM FIXO TATU E JESUS -->
           <div>
             <label class="block text-sm font-semibold mb-1">Mão de Obra / Operador</label>
             <select id="operadorSelect" onchange="tratarSelecao('operadorSelect', 'operadorOutro')" class="w-full border rounded-lg p-2.5 bg-white">
@@ -213,7 +212,6 @@
       atualizarInterface();
     });
 
-    // Função genérica para gerenciar opções "Outra / Outro"
     function tratarSelecao(selectId, inputOutroId) {
       const select = document.getElementById(selectId);
       const inputOutro = document.getElementById(inputOutroId);
@@ -231,10 +229,8 @@
       try {
         const response = await fetch(GOOGLE_SCRIPT_URL);
         const res = await response.json();
-        
         let baseNum = parseInt(res.proximoNumero, 10) + loteAtual.length;
         proximoNumeroSequencial = ("0000" + baseNum).slice(-4);
-        
         document.getElementById('numBag').value = proximoNumeroSequencial;
       } catch (err) {
         let baseNum = 1 + loteAtual.length;
@@ -252,21 +248,13 @@
       }
 
       const numBag = document.getElementById('numBag').value;
-      
-      // Resgata Matéria-Prima
       const selMat = document.getElementById('materialSelect').value;
       const material = (selMat === 'outro') ? document.getElementById('materialOutro').value : selMat;
-      
-      // Resgata Cor
       const selCor = document.getElementById('corSelect').value;
       const cor = (selCor === 'outra') ? document.getElementById('corOutra').value : selCor;
-
       const fornecedor = document.getElementById('fornecedor').value;
-      
-      // Resgata Mão de Obra / Operador
       const selOp = document.getElementById('operadorSelect').value;
       const maoDeObra = (selOp === 'outro') ? document.getElementById('operadorOutro').value : selOp;
-
       const peso = document.getElementById('peso').value;
 
       loteAtual.push({ numBag, material, cor, fornecedor, maoDeObra, peso });
@@ -301,11 +289,12 @@
           body: JSON.stringify({ action: "cadastrar_lote", bags: loteAtual })
         });
 
-        alert("✅ Todos os bags foram salvos na planilha do Google Sheets!");
-        
+        // Garante que todos os QR Codes foram totalmente desenhados antes de abrir a tela de impressão
+        renderizarFolha();
+
         setTimeout(() => {
           window.print();
-        }, 300);
+        }, 600);
 
       } catch (err) {
         alert("Erro ao enviar ao Google Sheets: " + err.message);
@@ -355,6 +344,7 @@
     function renderizarFolha() {
       const previewContainer = document.getElementById('a4-container-preview');
       const printContainer = document.getElementById('a4-container-print');
+      
       previewContainer.innerHTML = '';
       printContainer.innerHTML = '';
 
@@ -368,7 +358,7 @@
         boxPrint.className = 'etiqueta-box';
 
         if (bag) {
-          const conteudoPreview = `
+          const htmlConteudo = `
             <div style="flex: 1; padding-right: 1.5mm; text-align: left; overflow: hidden; line-height: 1.2;">
               <div style="font-size: 8.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; margin-bottom: 2px;">
                 BAG Nº: ${bag.numBag}
@@ -386,51 +376,28 @@
                 PESO: ${bag.peso} kg
               </div>
             </div>
-            <div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;">
-              <div id="qr-preview-${i}" style="width: 25mm; height: 25mm;"></div>
-            </div>
           `;
 
-          const conteudoPrint = `
-            <div style="flex: 1; padding-right: 1.5mm; text-align: left; overflow: hidden; line-height: 1.2;">
-              <div style="font-size: 8.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; margin-bottom: 2px;">
-                BAG Nº: ${bag.numBag}
-              </div>
-              <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${bag.material} (${bag.cor})
-              </div>
-              <div style="font-size: 7pt; color: #333; margin-top: 1px;">
-                <strong>FORN:</strong> ${bag.fornecedor}
-              </div>
-              <div style="font-size: 7pt; color: #333;">
-                <strong>OP:</strong> ${bag.maoDeObra}
-              </div>
-              <div style="font-size: 8.5pt; font-weight: bold; color: #111; margin-top: 2px;">
-                PESO: ${bag.peso} kg
-              </div>
-            </div>
-            <div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;">
-              <div id="qr-print-${i}" style="width: 25mm; height: 25mm;"></div>
-            </div>
-          `;
-
-          boxPreview.innerHTML = conteudoPreview;
-          boxPrint.innerHTML = conteudoPrint;
+          boxPreview.innerHTML = htmlConteudo + `<div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;"><div id="qr-preview-${i}"></div></div>`;
+          boxPrint.innerHTML = htmlConteudo + `<div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;"><div id="qr-print-${i}"></div></div>`;
 
           previewContainer.appendChild(boxPreview);
           printContainer.appendChild(boxPrint);
 
+          // Gera QR Code com limpeza prévia de container
           setTimeout(() => {
             const qrPrev = document.getElementById(`qr-preview-${i}`);
             const qrPrt = document.getElementById(`qr-print-${i}`);
             
-            if (qrPrev && !qrPrev.hasChildNodes()) {
-              new QRCode(qrPrev, { text: bag.numBag, width: 70, height: 70 });
+            if (qrPrev) {
+              qrPrev.innerHTML = '';
+              new QRCode(qrPrev, { text: String(bag.numBag), width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
             }
-            if (qrPrt && !qrPrt.hasChildNodes()) {
-              new QRCode(qrPrt, { text: bag.numBag, width: 70, height: 70 });
+            if (qrPrt) {
+              qrPrt.innerHTML = '';
+              new QRCode(qrPrt, { text: String(bag.numBag), width: 68, height: 68, correctLevel: QRCode.CorrectLevel.M });
             }
-          }, 50);
+          }, 60);
 
         } else {
           const vazioHtml = `<div style="width: 100%; text-align: center; color: #cbd5e1; font-size: 8pt; font-style: italic;">[ Vazio ]</div>`;
