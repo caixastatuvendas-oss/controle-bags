@@ -5,14 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Controle de Bags</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- BIBLIOTECA QR CODE FIXA E CONFIÁVEL -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     @page { size: A4 portrait; margin: 0; }
     
-    /* REGRAS RÍGIDAS DE IMPRESSÃO */
     @media print {
       body * { visibility: hidden !important; }
       .no-print { display: none !important; }
@@ -72,31 +70,31 @@
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 p-4">
+<body class="bg-gray-100 min-h-screen text-gray-800 p-2 sm:p-4">
 
-  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-6 mb-8 no-print">
-    <div class="flex justify-between items-center border-b pb-4 mb-6">
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6 mb-8 no-print">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6 gap-2">
       <div>
-        <h1 class="text-2xl font-bold text-blue-700">📦 Controle de Bags Sequencial</h1>
-        <p class="text-sm text-gray-500">Impressão A4 (7x4 cm) e Integração em Tempo Real com Google Sheets</p>
+        <h1 class="text-xl sm:text-2xl font-bold text-blue-700">📦 Controle de Bags Sequencial</h1>
+        <p class="text-xs sm:text-sm text-gray-500">Impressão A4 e Integração Google Sheets</p>
       </div>
-      <div class="bg-blue-100 text-blue-800 text-sm font-bold px-4 py-2 rounded-full border border-blue-200">
+      <div class="bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-blue-200">
         Etiquetas no Lote: <span id="qtd-no-lote">0</span> / 21
       </div>
     </div>
 
     <!-- Navegação -->
-    <div class="flex border-b mb-6">
-      <button id="btn-tab-cadastro" onclick="mudarAba('cadastro')" class="flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600">1. Lançar Bag</button>
-      <button id="btn-tab-impressao" onclick="mudarAba('impressao')" class="flex-1 py-3 font-semibold text-gray-500 border-b-2 border-transparent">2. Folha A4 (<span id="aba-impressao-count">0</span>/21)</button>
-      <button id="btn-tab-baixa" onclick="mudarAba('baixa')" class="flex-1 py-3 font-semibold text-gray-500 border-b-2 border-transparent">3. Dar Baixa (Câmera)</button>
+    <div class="flex border-b mb-6 text-sm">
+      <button id="btn-tab-cadastro" onclick="mudarAba('cadastro')" class="flex-1 py-2.5 font-semibold text-blue-600 border-b-2 border-blue-600">1. Lançar Bag</button>
+      <button id="btn-tab-impressao" onclick="mudarAba('impressao')" class="flex-1 py-2.5 font-semibold text-gray-500 border-b-2 border-transparent">2. Folha A4 (<span id="aba-impressao-count">0</span>/21)</button>
+      <button id="btn-tab-baixa" onclick="mudarAba('baixa')" class="flex-1 py-2.5 font-semibold text-gray-500 border-b-2 border-transparent">3. Dar Baixa</button>
     </div>
 
     <!-- ABA 1: FORMULÁRIO -->
     <div id="aba-cadastro" class="space-y-4">
       <form id="form-bag" onsubmit="adicionarBagAoLote(event)" class="space-y-4">
         
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-bold text-blue-700 mb-1">Nº do Bag (Bloqueado)</label>
             <input type="text" id="numBag" readonly class="w-full border-2 border-blue-400 bg-blue-50 font-mono font-bold text-lg text-blue-800 rounded-lg p-2.5 text-center cursor-not-allowed" value="Carregando...">
@@ -134,7 +132,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-semibold mb-1">Fornecedor</label>
             <input type="text" id="fornecedor" required placeholder="Ex: Braskem" class="w-full border rounded-lg p-2.5">
@@ -164,22 +162,22 @@
 
     <!-- ABA 2: IMPRESSÃO -->
     <div id="aba-impressao" class="hidden space-y-4">
-      <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg border">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 p-4 rounded-lg border gap-3">
         <div>
           <h3 class="font-bold text-gray-800">Status da Folha A4</h3>
           <p class="text-sm text-gray-600">Total acumulado: <strong><span id="txt-folha-count">0</span> de 21</strong> etiquetas.</p>
         </div>
-        <div class="flex gap-2">
-          <button id="btn-salvar-imprimir" onclick="salvarEImprimir()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-lg shadow">
-            ☁️ Registrar no Sheets e Imprimir A4
+        <div class="flex gap-2 w-full sm:w-auto">
+          <button id="btn-salvar-imprimir" onclick="salvarEImprimir()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2.5 rounded-lg shadow text-sm">
+            ☁️ Registrar e Imprimir
           </button>
-          <button onclick="limparLote()" class="bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-lg border border-red-200 text-sm">
-            🗑️ Limpar Folha A4
+          <button onclick="limparLote()" class="bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-3 py-2.5 rounded-lg border border-red-200 text-sm">
+            🗑️ Limpar
           </button>
         </div>
       </div>
 
-      <div class="border rounded-xl p-4 bg-gray-200 overflow-x-auto">
+      <div class="border rounded-xl p-2 sm:p-4 bg-gray-200 overflow-x-auto">
         <div id="a4-container-preview" class="a4-page-preview"></div>
       </div>
     </div>
@@ -188,14 +186,15 @@
     <div id="aba-baixa" class="hidden space-y-4">
       <div class="text-center max-w-md mx-auto">
         <h3 class="text-lg font-bold mb-1">Escanear Bag para Dar Baixa</h3>
-        <p class="text-sm text-gray-500 mb-4">Aponte a câmera para o QR Code da etiqueta do Bag.</p>
-        <div id="reader" class="w-full rounded-xl overflow-hidden border-2 border-blue-400 shadow-md"></div>
+        <p class="text-sm text-gray-500 mb-4">Aponte a câmera do celular para o QR Code.</p>
+        
+        <div id="reader" class="w-full rounded-xl overflow-hidden border-2 border-blue-400 shadow-md bg-black min-h-[250px]"></div>
+        
         <div id="status-leitura" class="mt-4 p-4 rounded-lg text-center font-semibold text-sm hidden"></div>
       </div>
     </div>
   </div>
 
-  <!-- CONTAINER EXCLUSIVO PARA IMPRESSÃO -->
   <div id="a4-container-print" class="a4-page"></div>
 
   <script>
@@ -242,7 +241,7 @@
     function adicionarBagAoLote(e) {
       e.preventDefault();
       if (loteAtual.length >= MAX_ETIQUETAS) {
-        alert("A folha A4 já está cheia com 21 etiquetas! Imprima para iniciar uma nova.");
+        alert("A folha A4 já está cheia com 21 etiquetas!");
         mudarAba('impressao');
         return;
       }
@@ -269,17 +268,17 @@
       atualizarInterface();
 
       if (loteAtual.length === MAX_ETIQUETAS) {
-        alert("🎉 A folha A4 foi totalmente preenchida com 21 etiquetas!");
+        alert("🎉 A folha A4 foi totalmente preenchida!");
         mudarAba('impressao');
       }
     }
 
     async function salvarEImprimir() {
-      if (loteAtual.length === 0) return alert("Não há etiquetas na folha para salvar.");
+      if (loteAtual.length === 0) return alert("Não há etiquetas na folha.");
 
       const btn = document.getElementById('btn-salvar-imprimir');
       btn.disabled = true;
-      btn.innerText = "⏳ Gravando no Google Sheets...";
+      btn.innerText = "⏳ Gravando...";
 
       try {
         await fetch(GOOGLE_SCRIPT_URL, {
@@ -289,7 +288,6 @@
           body: JSON.stringify({ action: "cadastrar_lote", bags: loteAtual })
         });
 
-        // Garante que todos os QR Codes foram totalmente desenhados antes de abrir a tela de impressão
         renderizarFolha();
 
         setTimeout(() => {
@@ -297,10 +295,10 @@
         }, 600);
 
       } catch (err) {
-        alert("Erro ao enviar ao Google Sheets: " + err.message);
+        alert("Erro ao enviar dados: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerText = "☁️ Registrar no Sheets e Imprimir A4";
+        btn.innerText = "☁️ Registrar e Imprimir";
       }
     }
 
@@ -335,7 +333,7 @@
 
       } catch (err) {
         statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-red-100 text-red-800";
-        statusDiv.innerText = "❌ Erro de conexão com o Google Sheets: " + err.message;
+        statusDiv.innerText = "❌ Erro de conexão com o Google Sheets";
       } finally {
         setTimeout(() => { processandoLeitura = false; }, 3000);
       }
@@ -384,7 +382,6 @@
           previewContainer.appendChild(boxPreview);
           printContainer.appendChild(boxPrint);
 
-          // Gera QR Code com limpeza prévia de container
           setTimeout(() => {
             const qrPrev = document.getElementById(`qr-preview-${i}`);
             const qrPrt = document.getElementById(`qr-print-${i}`);
@@ -419,7 +416,7 @@
     }
 
     function limparLote() {
-      if (confirm("Deseja limpar as etiquetas da tela para iniciar uma nova folha A4? (Os dados gravados na nuvem e a sequência numérica serão mantidos).")) {
+      if (confirm("Deseja limpar as etiquetas da tela?")) {
         loteAtual = [];
         localStorage.removeItem('lote_bags_a4');
         buscarProximoNumero();
@@ -443,15 +440,18 @@
 
     function iniciarLeitor() {
       if (html5QrcodeScanner) return;
-      
-      const config = { 
-        fps: 10, 
-        qrbox: { width: 220, height: 220 },
-        facingMode: "environment"
-      };
 
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
-      html5QrcodeScanner.render(onScanSuccess, (errorMessage) => {});
+      try {
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 200, height: 200 }
+        };
+
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+        html5QrcodeScanner.render(onScanSuccess, (err) => {});
+      } catch (e) {
+        console.error("Erro leitor: ", e);
+      }
     }
 
     function pararLeitor() {
