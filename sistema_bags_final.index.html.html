@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Controle de Bags</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      body { background: white !important; padding: 0 !important; margin: 0 !important; }
+      .no-print { display: none !important; }
+      .a4-page {
+        display: grid !important;
+        grid-template-columns: repeat(3, 70mm);
+        grid-template-rows: repeat(7, 40mm);
+        width: 210mm; height: 297mm; padding: 8.5mm 0mm;
+        box-sizing: border-box; page-break-after: always;
+      }
+      .etiqueta-box {
+        width: 70mm; height: 40mm; border: 1px dashed #cccccc;
+        box-sizing: border-box; padding: 2mm;
+        display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+        background: #ffffff; overflow: hidden;
+      }
+    }
+    .a4-page-preview {
+      width: 210mm; min-height: 297mm; padding: 8.5mm 0mm;
+      display: grid; grid-template-columns: repeat(3, 70mm); grid-template-rows: repeat(7, 40mm);
+      background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin: 0 auto; border: 1px solid #e5e7eb;
+    }
+    .etiqueta-box {
+      width: 70mm; height: 40mm; border: 1px dashed #cbd5e1;
+      box-sizing: border-box; padding: 2mm;
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+      background: #ffffff; font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 p-4">
+
+  <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md p-6 mb-8 no-print">
+    <div class="flex justify-between items-center border-b pb-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-blue-700">📦 Controle de Bags Sequencial</h1>
+        <p class="text-sm text-gray-500">Impressão A4 (7x4 cm) e Integração em Tempo Real com Google Sheets</p>
+      </div>
+      <div class="bg-blue-100 text-blue-800 text-sm font-bold px-4 py-2 rounded-full border border-blue-200">
+        Etiquetas no Lote: <span id="qtd-no-lote">0</span> / 21
+      </div>
+    </div>
+
+    <!-- Navegação -->
+    <div class="flex border-b mb-6">
+      <button id="btn-tab-cadastro" onclick="mudarAba('cadastro')" class="flex-1 py-3 font-semibold text-blue-600 border-b-2 border-blue-600">1. Lançar Bag</button>
+      <button id="btn-tab-impressao" onclick="mudarAba('impressao')" class="flex-1 py-3 font-semibold text-gray-500 border-b-2 border-transparent">2. Folha A4 (<span id="aba-impressao-count">0</span>/21)</button>
+      <button id="btn-tab-baixa" onclick="mudarAba('baixa')" class="flex-1 py-3 font-semibold text-gray-500 border-b-2 border-transparent">3. Dar Baixa (Câmera)</button>
+    </div>
+
+    <!-- ABA 1: FORMULÁRIO -->
+    <div id="aba-cadastro" class="space-y-4">
+      <form id="form-bag" onsubmit="adicionarBagAoLote(event)" class="space-y-4">
+        
+        <div class="grid grid-cols-3 gap-4">
+          <!-- NUMERAÇÃO TRAVADA AUTOMÁTICA -->
+          <div>
+            <label class="block text-sm font-bold text-blue-700 mb-1">Nº do Bag (Bloqueado)</label>
+            <input type="text" id="numBag" readonly class="w-full border-2 border-blue-400 bg-blue-50 font-mono font-bold text-lg text-blue-800 rounded-lg p-2.5 text-center cursor-not-allowed" value="Carregando...">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Matéria-Prima</label>
+            <input type="text" id="material" required placeholder="Ex: Resina PP" class="w-full border rounded-lg p-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Cor</label>
+            <input type="text" id="cor" required placeholder="Ex: Azul / Cristal" class="w-full border rounded-lg p-2.5">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold mb-1">Fornecedor</label>
+            <input type="text" id="fornecedor" required placeholder="Ex: Braskem" class="w-full border rounded-lg p-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Mão de Obra / Operador</label>
+            <input type="text" id="maoDeObra" required placeholder="Ex: João Silva" class="w-full border rounded-lg p-2.5">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Peso Líquido (kg)</label>
+            <input type="number" step="0.1" id="peso" required placeholder="Ex: 1000" class="w-full border rounded-lg p-2.5">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow">
+          ➕ Adicionar Bag ao Lote
+        </button>
+      </form>
+    </div>
+
+    <!-- ABA 2: IMPRESSÃO -->
+    <div id="aba-impressao" class="hidden space-y-4">
+      <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg border">
+        <div>
+          <h3 class="font-bold text-gray-800">Status da Folha A4</h3>
+          <p class="text-sm text-gray-600">Total acumulado: <strong><span id="txt-folha-count">0</span> de 21</strong> etiquetas.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-salvar-imprimir" onclick="salvarEImprimir()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-lg shadow">
+            ☁️ Registrar no Sheets e Imprimir A4
+          </button>
+          <button onclick="limparLote()" class="bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-4 py-2.5 rounded-lg border border-red-200 text-sm">
+            🗑️ Limpar Folha A4
+          </button>
+        </div>
+      </div>
+
+      <div class="border rounded-xl p-4 bg-gray-200 overflow-x-auto">
+        <div id="a4-container-preview" class="a4-page-preview"></div>
+      </div>
+    </div>
+
+    <!-- ABA 3: BAIXA -->
+    <div id="aba-baixa" class="hidden space-y-4">
+      <div class="text-center max-w-md mx-auto">
+        <h3 class="text-lg font-bold mb-1">Escanear Bag para Dar Baixa</h3>
+        <p class="text-sm text-gray-500 mb-4">Aponte a câmera para o QR Code da etiqueta do Bag.</p>
+        <div id="reader" class="w-full rounded-xl overflow-hidden border-2 border-blue-400 shadow-md"></div>
+        <div id="status-leitura" class="mt-4 p-4 rounded-lg text-center font-semibold text-sm hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="a4-container-print" class="a4-page hidden"></div>
+
+  <script>
+    // ⚠️ COLE A SUA URL DO GOOGLE APPS SCRIPT ABAIXO (ENTRE AS ASPAS):
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzuP0cvN_hRQ0i1rtxG5uKKrDvPe9KR9deAzFtJUQCe3bwNAbhhi2d5jLZpDVO87HY/exec";
+
+    const MAX_ETIQUETAS = 21;
+    let loteAtual = JSON.parse(localStorage.getItem('lote_bags_a4') || '[]');
+    let proximoNumeroSequencial = "0001";
+    let html5QrcodeScanner = null;
+    let processandoLeitura = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      buscarProximoNumero();
+      atualizarInterface();
+    });
+
+    // Busca o último número gravado no Google Sheets para manter a sequência exata
+    async function buscarProximoNumero() {
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL);
+        const res = await response.json();
+        
+        let baseNum = parseInt(res.proximoNumero, 10) + loteAtual.length;
+        proximoNumeroSequencial = ("0000" + baseNum).slice(-4);
+        
+        document.getElementById('numBag').value = proximoNumeroSequencial;
+      } catch (err) {
+        let baseNum = 1 + loteAtual.length;
+        proximoNumeroSequencial = ("0000" + baseNum).slice(-4);
+        document.getElementById('numBag').value = proximoNumeroSequencial;
+      }
+    }
+
+    function adicionarBagAoLote(e) {
+      e.preventDefault();
+      if (loteAtual.length >= MAX_ETIQUETAS) {
+        alert("A folha A4 já está cheia com 21 etiquetas! Imprima para iniciar uma nova.");
+        mudarAba('impressao');
+        return;
+      }
+
+      const numBag = document.getElementById('numBag').value;
+      const material = document.getElementById('material').value;
+      const cor = document.getElementById('cor').value;
+      const fornecedor = document.getElementById('fornecedor').value;
+      const maoDeObra = document.getElementById('maoDeObra').value;
+      const peso = document.getElementById('peso').value;
+
+      loteAtual.push({ numBag, material, cor, fornecedor, maoDeObra, peso });
+      localStorage.setItem('lote_bags_a4', JSON.stringify(loteAtual));
+
+      // Limpa os campos mantendo fornecedor e operador para agilizar
+      document.getElementById('material').value = '';
+      document.getElementById('peso').value = '';
+
+      // Atualiza o próximo número da sequência local
+      let prox = parseInt(numBag, 10) + 1;
+      proximoNumeroSequencial = ("0000" + prox).slice(-4);
+      document.getElementById('numBag').value = proximoNumeroSequencial;
+
+      atualizarInterface();
+
+      if (loteAtual.length === MAX_ETIQUETAS) {
+        alert("🎉 A folha A4 foi totalmente preenchida com 21 etiquetas!");
+        mudarAba('impressao');
+      }
+    }
+
+    async function salvarEImprimir() {
+      if (loteAtual.length === 0) return alert("Não há etiquetas na folha para salvar.");
+
+      const btn = document.getElementById('btn-salvar-imprimir');
+      btn.disabled = true;
+      btn.innerText = "⏳ Gravando no Google Sheets...";
+
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cadastrar_lote", bags: loteAtual })
+        });
+
+        alert("✅ Todos os bags foram salvos na planilha do Google Sheets!");
+        window.print();
+
+      } catch (err) {
+        alert("Erro ao enviar ao Google Sheets: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "☁️ Registrar no Sheets e Imprimir A4";
+      }
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (processandoLeitura) return;
+      processandoLeitura = true;
+
+      const statusDiv = document.getElementById('status-leitura');
+      statusDiv.classList.remove('hidden');
+      statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-blue-100 text-blue-800";
+      statusDiv.innerHTML = `⏳ Dando baixa no Bag Nº: <strong>${decodedText}</strong>...`;
+
+      try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "baixa", id: decodedText })
+        });
+
+        const res = await response.json();
+
+        if (res.status === "success") {
+          statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-green-100 text-green-800 border border-green-300";
+          statusDiv.innerText = res.message;
+        } else if (res.status === "already_used") {
+          statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-yellow-100 text-yellow-800 border border-yellow-300";
+          statusDiv.innerText = res.message;
+        } else {
+          statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-red-100 text-red-800 border border-red-300";
+          statusDiv.innerText = res.message;
+        }
+
+      } catch (err) {
+        statusDiv.className = "mt-4 p-4 rounded-lg text-center font-semibold text-sm bg-red-100 text-red-800";
+        statusDiv.innerText = "❌ Erro de conexão com o Google Sheets: " + err.message;
+      } finally {
+        setTimeout(() => { processandoLeitura = false; }, 3000);
+      }
+    }
+
+    function renderizarFolha() {
+      const previewContainer = document.getElementById('a4-container-preview');
+      const printContainer = document.getElementById('a4-container-print');
+      previewContainer.innerHTML = '';
+      printContainer.innerHTML = '';
+
+      for (let i = 0; i < MAX_ETIQUETAS; i++) {
+        const bag = loteAtual[i];
+        const boxPreview = document.createElement('div');
+        boxPreview.className = 'etiqueta-box';
+
+        const boxPrint = document.createElement('div');
+        boxPrint.className = 'etiqueta-box';
+
+        if (bag) {
+          const conteudoHtml = `
+            <div style="flex: 1; padding-right: 1.5mm; text-align: left; overflow: hidden; line-height: 1.2;">
+              <div style="font-size: 8.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; margin-bottom: 2px;">
+                BAG Nº: ${bag.numBag}
+              </div>
+              <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${bag.material} (${bag.cor})
+              </div>
+              <div style="font-size: 7pt; color: #333; margin-top: 1px;">
+                <strong>FORN:</strong> ${bag.fornecedor}
+              </div>
+              <div style="font-size: 7pt; color: #333;">
+                <strong>OP:</strong> ${bag.maoDeObra}
+              </div>
+              <div style="font-size: 8.5pt; font-weight: bold; color: #111; margin-top: 2px;">
+                PESO: ${bag.peso} kg
+              </div>
+            </div>
+            <div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;">
+              <div id="qr-preview-${i}" style="width: 25mm; height: 25mm;"></div>
+            </div>
+          `;
+
+          boxPreview.innerHTML = conteudoHtml;
+          boxPrint.innerHTML = conteudoHtml;
+
+          previewContainer.appendChild(boxPreview);
+          printContainer.appendChild(boxPrint);
+
+          setTimeout(() => {
+            const qrElem = document.getElementById(`qr-preview-${i}`);
+            if (qrElem && !qrElem.hasChildNodes()) {
+              new QRCode(qrElem, { text: bag.numBag, width: 70, height: 70 });
+            }
+          }, 50);
+
+        } else {
+          const vazioHtml = `<div style="width: 100%; text-align: center; color: #cbd5e1; font-size: 8pt; font-style: italic;">[ Vazio ]</div>`;
+          boxPreview.innerHTML = vazioHtml;
+          boxPrint.innerHTML = vazioHtml;
+
+          previewContainer.appendChild(boxPreview);
+          printContainer.appendChild(boxPrint);
+        }
+      }
+    }
+
+    function atualizarInterface() {
+      const qtd = loteAtual.length;
+      document.getElementById('qtd-no-lote').innerText = qtd;
+      document.getElementById('aba-impressao-count').innerText = qtd;
+      document.getElementById('txt-folha-count').innerText = qtd;
+      renderizarFolha();
+    }
+
+    // Limpa a tela local e consulta o Google Sheets para pegar o próximo número sequencial real
+    function limparLote() {
+      if (confirm("Deseja limpar as etiquetas da tela para iniciar uma nova folha A4? (Os dados gravados na nuvem e a sequência numérica serão mantidos).")) {
+        loteAtual = [];
+        localStorage.removeItem('lote_bags_a4');
+        buscarProximoNumero(); // Busca a numeração continuada na nuvem
+        atualizarInterface();
+      }
+    }
+
+    function mudarAba(aba) {
+      ['cadastro', 'impressao', 'baixa'].forEach(a => {
+        document.getElementById(`aba-${a}`).classList.add('hidden');
+        document.getElementById(`btn-tab-${a}`).classList.remove('text-blue-600', 'border-blue-600');
+        document.getElementById(`btn-tab-${a}`).classList.add('text-gray-500', 'border-transparent');
+      });
+
+      document.getElementById(`aba-${aba}`).classList.remove('hidden');
+      document.getElementById(`btn-tab-${aba}`).classList.add('text-blue-600', 'border-blue-600');
+
+      if (aba === 'baixa') iniciarLeitor();
+      else pararLeitor();
+    }
+
+    function iniciarLeitor() {
+      if (html5QrcodeScanner) return;
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } });
+      html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    function pararLeitor() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear();
+        html5QrcodeScanner = null;
+      }
+    }
+  </script>
+</body>
+</html>
