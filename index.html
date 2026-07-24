@@ -10,28 +10,59 @@
 
   <style>
     @page { size: A4 portrait; margin: 0; }
+    
+    /* REGRAS RÍGIDAS DE IMPRESSÃO - FORÇA O EXIBIMENTO DOS QR CODES */
     @media print {
-      body { background: white !important; padding: 0 !important; margin: 0 !important; }
+      body * { visibility: hidden !important; }
       .no-print { display: none !important; }
-      .a4-page {
+      
+      #a4-container-print, #a4-container-print * { 
+        visibility: visible !important; 
+      }
+      
+      #a4-container-print {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
         display: grid !important;
         grid-template-columns: repeat(3, 70mm);
         grid-template-rows: repeat(7, 40mm);
-        width: 210mm; height: 297mm; padding: 8.5mm 0mm;
-        box-sizing: border-box; page-break-after: always;
+        width: 210mm; 
+        height: 297mm; 
+        padding: 8.5mm 0mm;
+        box-sizing: border-box; 
+        page-break-after: always;
+        background: #ffffff !important;
       }
+
       .etiqueta-box {
-        width: 70mm; height: 40mm; border: 1px dashed #cccccc;
-        box-sizing: border-box; padding: 2mm;
-        display: flex; flex-direction: row; align-items: center; justify-content: space-between;
-        background: #ffffff; overflow: hidden;
+        width: 70mm; 
+        height: 40mm; 
+        border: 1px dashed #cccccc;
+        box-sizing: border-box; 
+        padding: 2mm;
+        display: flex !important; 
+        flex-direction: row !important; 
+        align-items: center !important; 
+        justify-content: space-between !important;
+        background: #ffffff !important; 
+        overflow: hidden;
+      }
+
+      /* Garante que imagens e canvas gerados do QR Code fiquem visíveis */
+      .etiqueta-box img, .etiqueta-box canvas {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
       }
     }
+
     .a4-page-preview {
       width: 210mm; min-height: 297mm; padding: 8.5mm 0mm;
       display: grid; grid-template-columns: repeat(3, 70mm); grid-template-rows: repeat(7, 40mm);
       background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin: 0 auto; border: 1px solid #e5e7eb;
     }
+    
     .etiqueta-box {
       width: 70mm; height: 40mm; border: 1px dashed #cbd5e1;
       box-sizing: border-box; padding: 2mm;
@@ -65,7 +96,6 @@
       <form id="form-bag" onsubmit="adicionarBagAoLote(event)" class="space-y-4">
         
         <div class="grid grid-cols-3 gap-4">
-          <!-- NUMERAÇÃO TRAVADA AUTOMÁTICA -->
           <div>
             <label class="block text-sm font-bold text-blue-700 mb-1">Nº do Bag (Bloqueado)</label>
             <input type="text" id="numBag" readonly class="w-full border-2 border-blue-400 bg-blue-50 font-mono font-bold text-lg text-blue-800 rounded-lg p-2.5 text-center cursor-not-allowed" value="Carregando...">
@@ -134,10 +164,10 @@
     </div>
   </div>
 
-  <div id="a4-container-print" class="a4-page hidden"></div>
+  <!-- CONTAINER EXCLUSIVO PARA IMPRESSÃO -->
+  <div id="a4-container-print" class="a4-page"></div>
 
   <script>
-    // ⚠️ COLE A SUA URL DO GOOGLE APPS SCRIPT ABAIXO (ENTRE AS ASPAS):
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzuP0cvN_hRQ0i1rtxG5uKKrDvPe9KR9deAzFtJUQCe3bwNAbhhi2d5jLZpDVO87HY/exec";
 
     const MAX_ETIQUETAS = 21;
@@ -151,7 +181,6 @@
       atualizarInterface();
     });
 
-    // Busca o último número gravado no Google Sheets para manter a sequência exata
     async function buscarProximoNumero() {
       try {
         const response = await fetch(GOOGLE_SCRIPT_URL);
@@ -186,11 +215,9 @@
       loteAtual.push({ numBag, material, cor, fornecedor, maoDeObra, peso });
       localStorage.setItem('lote_bags_a4', JSON.stringify(loteAtual));
 
-      // Limpa os campos mantendo fornecedor e operador para agilizar
       document.getElementById('material').value = '';
       document.getElementById('peso').value = '';
 
-      // Atualiza o próximo número da sequência local
       let prox = parseInt(numBag, 10) + 1;
       proximoNumeroSequencial = ("0000" + prox).slice(-4);
       document.getElementById('numBag').value = proximoNumeroSequencial;
@@ -219,7 +246,11 @@
         });
 
         alert("✅ Todos os bags foram salvos na planilha do Google Sheets!");
-        window.print();
+        
+        // Aguarda 300ms para garantir que a renderização do QR Code foi concluída no DOM de impressão
+        setTimeout(() => {
+          window.print();
+        }, 300);
 
       } catch (err) {
         alert("Erro ao enviar ao Google Sheets: " + err.message);
@@ -274,6 +305,7 @@
 
       for (let i = 0; i < MAX_ETIQUETAS; i++) {
         const bag = loteAtual[i];
+        
         const boxPreview = document.createElement('div');
         boxPreview.className = 'etiqueta-box';
 
@@ -281,7 +313,7 @@
         boxPrint.className = 'etiqueta-box';
 
         if (bag) {
-          const conteudoHtml = `
+          const conteudoPreview = `
             <div style="flex: 1; padding-right: 1.5mm; text-align: left; overflow: hidden; line-height: 1.2;">
               <div style="font-size: 8.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; margin-bottom: 2px;">
                 BAG Nº: ${bag.numBag}
@@ -304,16 +336,45 @@
             </div>
           `;
 
-          boxPreview.innerHTML = conteudoHtml;
-          boxPrint.innerHTML = conteudoHtml;
+          const conteudoPrint = `
+            <div style="flex: 1; padding-right: 1.5mm; text-align: left; overflow: hidden; line-height: 1.2;">
+              <div style="font-size: 8.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #1e3a8a; margin-bottom: 2px;">
+                BAG Nº: ${bag.numBag}
+              </div>
+              <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${bag.material} (${bag.cor})
+              </div>
+              <div style="font-size: 7pt; color: #333; margin-top: 1px;">
+                <strong>FORN:</strong> ${bag.fornecedor}
+              </div>
+              <div style="font-size: 7pt; color: #333;">
+                <strong>OP:</strong> ${bag.maoDeObra}
+              </div>
+              <div style="font-size: 8.5pt; font-weight: bold; color: #111; margin-top: 2px;">
+                PESO: ${bag.peso} kg
+              </div>
+            </div>
+            <div style="width: 27mm; height: 27mm; display: flex; align-items: center; justify-content: center;">
+              <div id="qr-print-${i}" style="width: 25mm; height: 25mm;"></div>
+            </div>
+          `;
+
+          boxPreview.innerHTML = conteudoPreview;
+          boxPrint.innerHTML = conteudoPrint;
 
           previewContainer.appendChild(boxPreview);
           printContainer.appendChild(boxPrint);
 
+          // Gera QR Code tanto na tela de preview quanto no container real de impressão
           setTimeout(() => {
-            const qrElem = document.getElementById(`qr-preview-${i}`);
-            if (qrElem && !qrElem.hasChildNodes()) {
-              new QRCode(qrElem, { text: bag.numBag, width: 70, height: 70 });
+            const qrPrev = document.getElementById(`qr-preview-${i}`);
+            const qrPrt = document.getElementById(`qr-print-${i}`);
+            
+            if (qrPrev && !qrPrev.hasChildNodes()) {
+              new QRCode(qrPrev, { text: bag.numBag, width: 70, height: 70 });
+            }
+            if (qrPrt && !qrPrt.hasChildNodes()) {
+              new QRCode(qrPrt, { text: bag.numBag, width: 70, height: 70 });
             }
           }, 50);
 
@@ -336,12 +397,11 @@
       renderizarFolha();
     }
 
-    // Limpa a tela local e consulta o Google Sheets para pegar o próximo número sequencial real
     function limparLote() {
       if (confirm("Deseja limpar as etiquetas da tela para iniciar uma nova folha A4? (Os dados gravados na nuvem e a sequência numérica serão mantidos).")) {
         loteAtual = [];
         localStorage.removeItem('lote_bags_a4');
-        buscarProximoNumero(); // Busca a numeração continuada na nuvem
+        buscarProximoNumero();
         atualizarInterface();
       }
     }
@@ -362,13 +422,23 @@
 
     function iniciarLeitor() {
       if (html5QrcodeScanner) return;
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } });
-      html5QrcodeScanner.render(onScanSuccess);
+      
+      // Força a utilização da câmera traseira no celular
+      const config = { 
+        fps: 10, 
+        qrbox: { width: 220, height: 220 },
+        facingMode: "environment"
+      };
+
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+      html5QrcodeScanner.render(onScanSuccess, (errorMessage) => {
+        // Erros de varredura normais são ignorados silenciosamente
+      });
     }
 
     function pararLeitor() {
       if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear();
+        html5QrcodeScanner.clear().catch(error => console.error("Erro ao fechar leitor", error));
         html5QrcodeScanner = null;
       }
     }
