@@ -281,7 +281,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDnzvLoZ8wqM3EmSvbAoPnLRd4rC_Bz_6fC_RR40znXGYs-uq6Fya_TtvQaSqh59M/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/library/d/1XtbKy3veniq4F-pqQD_rOgD8eRGrFqBL8TTpQ2NukmlCULkFci20PPUZ/14";
     let filaEtiquetas = [];
     let cacheBags = {};
     let html5QrCode = null;
@@ -342,16 +342,13 @@
             { facingMode: "environment" }, 
             config, 
             (decodedText) => {
-                // Ao ler com sucesso o código de barras
                 if (inputBagAtual) {
                     inputBagAtual.value = decodedText;
                     buscarQuantidadeDoBag(inputBagAtual);
                 }
                 fecharLeitorCamera();
             },
-            (errorMessage) => {
-                // Erros de leitura contínuos enquanto busca o foco
-            }
+            (errorMessage) => { }
         ).catch(err => {
             alert("Erro ao acessar a câmera. Verifique se deu permissão no navegador.");
             fecharLeitorCamera();
@@ -459,9 +456,13 @@
         document.getElementById('qtdFinalKg').value = total.toFixed(2);
     }
 
+    // CORREÇÃO: Apaga apenas a linha (tr) correspondente
     function removerLinha(btn) {
-        btn.parentNode.parentNode.parentNode.remove();
-        calcularSomaTotal();
+        const linha = btn.closest('tr');
+        if (linha) {
+            linha.remove();
+            calcularSomaTotal();
+        }
     }
 
     function toggleOutro(selectId, inputId) {
