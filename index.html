@@ -40,6 +40,7 @@
         .btn-success { background-color: #16a34a; }
         .btn-secondary { background-color: #475569; }
         .btn-camera { background-color: #0284c7; color: white; padding: 8px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-reload { background-color: #d97706; color: white; padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem; margin-left: 5px; }
 
         .alerta-erro {
             background-color: #f87171;
@@ -125,7 +126,13 @@
     <div id="tab-entrada" class="tab-content active">
         <form id="formEntrada">
             <div class="form-grid">
-                <div class="form-group"><label>BAG Nº (Automático)</label><input type="text" id="bagNo" readonly value="Carregando..."></div>
+                <div class="form-group">
+                    <label>
+                        BAG Nº 
+                        <button type="button" class="btn-reload" onclick="carregarDadosEmCache()" title="Forçar Atualização">🔄 Atualizar</button>
+                    </label>
+                    <input type="text" id="bagNo" readonly value="Carregando...">
+                </div>
                 <div class="form-group"><label>Data de Entrada</label><input type="text" id="dataEntrada" readonly></div>
                 <div class="form-group">
                     <label>Cor</label>
@@ -170,7 +177,7 @@
                 </div>
                 <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Nome do fornecedor"></div>
             </div>
-            <button type="submit" class="btn">Lançar Entrada e Adicionar à Fila</button>
+            <button type="submit" id="btnSalvarEntrada" class="btn">Lançar Entrada e Adicionar à Fila</button>
         </form>
 
         <div class="painel-impressao">
@@ -281,7 +288,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/library/d/1XtbKy3veniq4F-pqQD_rOgD8eRGrFqBL8TTpQ2NukmlCULkFci20PPUZ/14";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyk-3ds00c_i40rTmzSWaSRR6SQ1xnA50njZUupB9Szf7ZtUYwBBhZo1Jk9fLmd3FI/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let html5QrCode = null;
@@ -296,12 +303,24 @@
         adicionarLinhaBag(false);
     });
 
+    // CARREGAMENTO SEGURO COM TIMEOUT E FALCON DE SEGURANÇA
     function carregarDadosEmCache() {
-        fetch(APPS_SCRIPT_URL)
+        const inputBag = document.getElementById('bagNo');
+        const inputLote = document.getElementById('noControle');
+        
+        inputBag.value = "Carregando...";
+        inputLote.value = "Carregando...";
+
+        // Timeout de 6 segundos caso o Google demore a responder
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        fetch(APPS_SCRIPT_URL, { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
-            document.getElementById('bagNo').value = data.proximoBag;
-            document.getElementById('noControle').value = data.proximoLote;
+            clearTimeout(timeoutId);
+            if(data.proximoBag) inputBag.value = data.proximoBag;
+            if(data.proximoLote) inputLote.value = data.proximoLote;
             
             const datalist = document.getElementById('listaBagsData');
             datalist.innerHTML = '';
@@ -317,6 +336,15 @@
                         datalist.appendChild(option);
                     }
                 });
+            }
+        })
+        .catch(err => {
+            console.warn("Aviso ao carregar dados do Google:", err);
+            // Fallback caso falhe a rede
+            if (inputBag.value === "Carregando...") {
+                inputBag.value = "BAG-" + String(Math.floor(Math.random() * 800) + 100).padStart(4, '0');
+                inputLote.value = "LOTE-1001";
+                alert("⚠️ Conexão com a planilha instável. O sistema gerou uma numeração temporária para não parar sua operação.");
             }
         });
     }
@@ -350,7 +378,7 @@
             },
             (errorMessage) => { }
         ).catch(err => {
-            alert("Erro ao acessar a câmera. Verifique se deu permissão no navegador.");
+            alert("Erro ao acessar a câmera. Verifique as permissões no navegador.");
             fecharLeitorCamera();
         });
     }
@@ -456,7 +484,6 @@
         document.getElementById('qtdFinalKg').value = total.toFixed(2);
     }
 
-    // CORREÇÃO: Apaga apenas a linha (tr) correspondente
     function removerLinha(btn) {
         const linha = btn.closest('tr');
         if (linha) {
@@ -515,7 +542,7 @@
         }).then(() => {
             filaEtiquetas.push({ bagNo, cor, tipo, peso, maoDeObra, dataEntrada });
             atualizarFilaImpressao();
-            alert(`BAG ${bagNo} gravado!`);
+            alert(`BAG ${bagNo} gravado com sucesso!`);
             document.getElementById('peso').value = '';
             document.getElementById('fornecedor').value = '';
             carregarDadosEmCache();
