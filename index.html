@@ -4,8 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Estoque - Caixas Tatu</title>
-    <!-- Biblioteca para geração de Código de Barras (Code 128) -->
+
+    <!-- Biblioteca para geração de Código de Barras (JsBarcode) -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <!-- Biblioteca para leitura de Código de Barras via Câmera (Html5QRCode) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
     <style>
         :root {
             --primary: #1e3a8a;
@@ -34,6 +39,7 @@
         .btn { background-color: var(--primary); color: white; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
         .btn-success { background-color: #16a34a; }
         .btn-secondary { background-color: #475569; }
+        .btn-camera { background-color: #0284c7; color: white; padding: 8px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
 
         .alerta-erro {
             background-color: #f87171;
@@ -47,64 +53,44 @@
             display: none;
         }
 
+        /* MODAL DA CÂMERA */
+        #modalCamera {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        #reader {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
         .painel-impressao { background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center; }
 
-        /* IMPRESSÃO A4 ETIQUETAS (COM CÓDIGO DE BARRAS) */
+        /* ETIQUETAS A4 */
         #folhaA4 { display: none; width: 21cm; min-height: 29.7cm; padding: 1cm 0.6cm; background: white; margin: 20px auto; border: 1px solid #ccc; }
         .grid-a4 { display: grid; grid-template-columns: repeat(3, 6.7cm); grid-auto-rows: 3.9cm; gap: 0.3cm; justify-content: center; }
         
         .etiqueta-box { 
-            width: 6.7cm; 
-            height: 3.9cm; 
-            border: 1px dashed #000; 
-            padding: 4px 6px; 
-            background: white; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between; 
-            align-items: center;
-            box-sizing: border-box; 
-            overflow: hidden; 
+            width: 6.7cm; height: 3.9cm; border: 1px dashed #000; padding: 4px 6px; 
+            background: white; display: flex; flex-direction: column; 
+            justify-content: space-between; align-items: center; box-sizing: border-box; overflow: hidden; 
         }
 
-        .etiqueta-header {
-            width: 100%;
-            font-size: 10px;
-            font-weight: bold;
-            text-align: center;
-            border-bottom: 1px solid #000;
-            padding-bottom: 2px;
-        }
+        .etiqueta-header { width: 100%; font-size: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px; }
+        .etiqueta-info { text-align: left; font-size: 8.5px; line-height: 1.2; font-weight: bold; width: 100%; }
+        .barcode-box { width: 100%; display: flex; justify-content: center; align-items: center; }
+        .barcode-box svg { width: 100%; max-height: 1.3cm; }
 
-        .etiqueta-corpo {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 2px 0;
-        }
-
-        .etiqueta-info { 
-            text-align: left; 
-            font-size: 8.5px; 
-            line-height: 1.2; 
-            font-weight: bold; 
-            width: 100%;
-        }
-
-        .barcode-box { 
-            width: 100%; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-        }
-
-        .barcode-box svg {
-            width: 100%;
-            max-height: 1.3cm;
-        }
-
-        /* IMPRESSÃO FICHA DE MISTURA */
+        /* FICHA DE MISTURA */
         #folhaFichaMistura { display: none; width: 21cm; background: white; padding: 1cm; margin: 20px auto; border: 1px solid #000; font-family: Arial, sans-serif; }
         .tabela-ficha { width: 100%; border-collapse: collapse; margin-top: 5px; }
         .tabela-ficha th, .tabela-ficha td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 12px; }
@@ -210,9 +196,12 @@
             </div>
 
             <p><b>BAGs Utilizados (Com Saldo Restante):</b></p>
+            
+            <button type="button" class="btn-camera" onclick="abrirLeitorCamera()">📷 Abrir Câmera para Leitura de Código de Barras</button>
+
             <table id="tabelaBags" style="width:100%; border-collapse:collapse; margin-bottom:10px;">
                 <thead>
-                    <tr style="background:#f8fafc; font-size:12px;"><th>Nº BAG (Bipe ou Digite)</th><th>QNTDD (KG) [Ajustável]</th><th>Remover</th></tr>
+                    <tr style="background:#f8fafc; font-size:12px;"><th>Nº BAG (Bipe, Escaneie ou Digite)</th><th>QNTDD (KG) [Ajustável]</th><th>Remover</th></tr>
                 </thead>
                 <tbody id="bodyBags"></tbody>
             </table>
@@ -285,10 +274,18 @@
     </div>
 </div>
 
+<!-- MODAL DA CÂMERA -->
+<div id="modalCamera">
+    <div id="reader"></div>
+    <button class="btn btn-secondary" style="max-width: 450px; margin-top: 10px;" onclick="fecharLeitorCamera()">Fechar Câmera</button>
+</div>
+
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNYJTf6vMT_PwtrlnrEV73Zw2x4dzJcQEc3MTsPJEES4MA0M_QCI_DJ-RzYfyG1f8/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDnzvLoZ8wqM3EmSvbAoPnLRd4rC_Bz_6fC_RR40znXGYs-uq6Fya_TtvQaSqh59M/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
+    let html5QrCode = null;
+    let inputBagAtual = null;
 
     document.addEventListener("DOMContentLoaded", function() {
         const dataHoje = new Date().toLocaleDateString('pt-BR');
@@ -324,16 +321,66 @@
         });
     }
 
-    // ADICIONAR E TRATAR LINHAS DE BAG NA MISTURA
+    // CÂMERA LEITORA DE CÓDIGO DE BARRAS
+    function abrirLeitorCamera(inputAlvo = null) {
+        if (!inputAlvo) {
+            const inputs = document.querySelectorAll('.input-bag');
+            inputBagAtual = inputs[inputs.length - 1];
+        } else {
+            inputBagAtual = inputAlvo;
+        }
+
+        document.getElementById('modalCamera').style.display = 'flex';
+
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
+        }
+
+        const config = { fps: 10, qrbox: { width: 280, height: 150 } };
+
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            (decodedText) => {
+                // Ao ler com sucesso o código de barras
+                if (inputBagAtual) {
+                    inputBagAtual.value = decodedText;
+                    buscarQuantidadeDoBag(inputBagAtual);
+                }
+                fecharLeitorCamera();
+            },
+            (errorMessage) => {
+                // Erros de leitura contínuos enquanto busca o foco
+            }
+        ).catch(err => {
+            alert("Erro ao acessar a câmera. Verifique se deu permissão no navegador.");
+            fecharLeitorCamera();
+        });
+    }
+
+    function fecharLeitorCamera() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                document.getElementById('modalCamera').style.display = 'none';
+            });
+        } else {
+            document.getElementById('modalCamera').style.display = 'none';
+        }
+    }
+
+    // LINHAS DE BAG NA MISTURA
     function adicionarLinhaBag(focar = false) {
         const tbody = document.getElementById('bodyBags');
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" 
-                       placeholder="Bipe ou digite o BAG..." 
-                       onkeydown="tratarTeclarEnter(event, this)" 
-                       onchange="buscarQuantidadeDoBag(this)" required style="width:100%">
+                <div style="display:flex; gap:5px;">
+                    <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" 
+                           placeholder="Bipe, escaneie ou digite..." 
+                           onkeydown="tratarTeclarEnter(event, this)" 
+                           onchange="buscarQuantidadeDoBag(this)" required style="width:100%">
+                    <button type="button" onclick="abrirLeitorCamera(this.previousElementSibling)" style="padding:0 8px; cursor:pointer;" title="Escanear com a câmera">📷</button>
+                </div>
             </td>
             <td>
                 <input type="number" step="0.01" name="bag_qtd[]" class="qtd-bag" 
@@ -397,7 +444,6 @@
             inputQtd.focus();
         }
 
-        // Se for a última linha e tiver preenchido, adiciona automaticamente nova linha para o próximo bipo
         const todasLinhas = document.querySelectorAll('#bodyBags tr');
         if (todasLinhas[todasLinhas.length - 1] === row && inputQtd.value > 0) {
             adicionarLinhaBag(true);
@@ -414,7 +460,7 @@
     }
 
     function removerLinha(btn) {
-        btn.parentNode.parentNode.remove();
+        btn.parentNode.parentNode.parentNode.remove();
         calcularSomaTotal();
     }
 
@@ -482,7 +528,7 @@
         if (qtd >= 18) document.getElementById('btnImprimirA4').style.display = 'inline-block';
     }
 
-    // GERAÇÃO DE CÓDIGO DE BARRAS NAS ETIQUETAS A4
+    // GERAÇÃO DE CÓDIGO DE BARRAS
     function imprimirFolhaA4() {
         const folha = document.getElementById('folhaA4');
         const grid = document.getElementById('gridEtiquetaConteudo');
@@ -505,7 +551,6 @@
             `;
             grid.appendChild(box);
 
-            // Gera o código de barras no formato CODE128
             JsBarcode(`#${barcodeId}`, item.bagNo, {
                 format: "CODE128",
                 width: 1.8,
