@@ -128,12 +128,14 @@
                 <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Fornecedor"></div>
                 <div class="form-group">
                     <label>Mão de Obra</label>
-                    <select id="maoDeObra" required>
+                    <select id="maoDeObra" onchange="toggleOutro('maoDeObra', 'maoDeObraOutro')" required>
                         <option value="">Selecione...</option>
                         <option value="Não">Não</option>
                         <option value="Jesus">Jesus</option>
                         <option value="Tatu">Tatu</option>
+                        <option value="Outra">Outra...</option>
                     </select>
+                    <input type="text" id="maoDeObraOutro" placeholder="Digite a mão de obra" style="display:none; margin-top:5px;">
                 </div>
             </div>
             <button type="submit" id="btnSalvarEntrada" class="btn">Lançar Entrada e Gerar Etiqueta</button>
@@ -241,7 +243,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAYoamfvEtenMPKU1bKJ-w2cugboL9QrH6lQK1PU3BYn1o4HqGPF2c8IIUTiHWdhA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzFKIxG-ziTw8tpgqbFudl_Ir3PHe8z4kwZgzP9MnHiOfVtAKIfNERYAJghK-RaR0w/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let historicoEntradasGeral = JSON.parse(localStorage.getItem('historicoEntradasGeral') || "[]");
@@ -331,7 +333,7 @@
             tipo: document.getElementById('tipoSelect').value === 'Outra' ? document.getElementById('tipoOutro').value : document.getElementById('tipoSelect').value,
             peso: document.getElementById('peso').value,
             fornecedor: document.getElementById('fornecedor').value,
-            maoDeObra: document.getElementById('maoDeObra').value,
+            maoDeObra: document.getElementById('maoDeObra').value === 'Outra' ? document.getElementById('maoDeObraOutro').value : document.getElementById('maoDeObra').value,
             dataEntrada: document.getElementById('dataEntrada').value
         };
 
@@ -532,6 +534,7 @@
         const mostrar = select.value === 'Outras' || select.value === 'Outra';
         input.style.display = mostrar ? 'block' : 'none';
         input.required = mostrar;
+        if (!mostrar) input.value = '';
     }
 
     function adicionarLinhaBag(focar = false) {
@@ -591,21 +594,28 @@
 
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 250, height: 140 } }, (text) => {
             if (inputBagAtual) {
-                inputBagAtual.value = text.trim();
+                inputBagAtual.value = text;
                 buscarQuantidadeDoBag(inputBagAtual);
             }
             fecharLeitorCamera();
-        }, () => {});
+        }).catch(err => {
+            console.error(err);
+            alert("Erro ao acessar a câmera.");
+            fecharLeitorCamera();
+        });
     }
 
     function fecharLeitorCamera() {
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => document.getElementById('modalCamera').style.display = 'none');
+        if (html5QrCode) {
+            html5QrCode.stop().then(() => {
+                document.getElementById('modalCamera').style.display = 'none';
+            }).catch(err => {
+                document.getElementById('modalCamera').style.display = 'none';
+            });
         } else {
             document.getElementById('modalCamera').style.display = 'none';
         }
     }
 </script>
-
 </body>
 </html>
