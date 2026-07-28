@@ -240,7 +240,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuT9pnXVYb0LAjSo92L3bd6N8mZEQ64p5jgP1-OcK9iLhNcuhhqadlyiU-fWISjA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwN9pCT1aqvQaklGfbYmvhoTs_XoJzJDXcZtVc6EzD3HBeUHMxX8ieoATLSD4WFUcM/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let historicoEntradasGeral = JSON.parse(localStorage.getItem('historicoEntradasGeral') || "[]");
@@ -271,6 +271,14 @@
         renderizarHistoricoEtiquetas();
         renderizarHistoricoFichas();
         sincronizarComGoogleSheets();
+    });
+
+    // Ouvinte para Scanners físicos (Leitor USB)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.classList.contains('input-bag')) {
+            e.preventDefault();
+            buscarQuantidadeDoBag(e.target);
+        }
     });
 
     function switchTab(tab) {
@@ -519,7 +527,7 @@
         tr.innerHTML = `
             <td>
                 <div style="display:flex; gap:4px;">
-                    <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" placeholder="Bipe ou digite..." onchange="buscarQuantidadeDoBag(this)" required style="width:100%">
+                    <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" placeholder="Bipe ou digite..." onchange="buscarQuantidadeDoBag(this)" oninput="buscarQuantidadeDoBag(this)" required style="width:100%">
                     <button type="button" onclick="abrirLeitorCamera(this.previousElementSibling)" style="padding:0 6px;">📷</button>
                 </div>
             </td>
@@ -533,16 +541,25 @@
 
     function buscarQuantidadeDoBag(inputBag) {
         let codigoBag = inputBag.value.trim().toUpperCase().split(' ')[0];
+        if (!codigoBag) return;
+
         inputBag.value = codigoBag;
         const row = inputBag.closest('tr');
         const bagInfo = cacheBags[codigoBag];
         
         if (bagInfo) {
+            // Puxa o saldo atual do BAG ou o peso de entrada original
+            const pesoDoBag = (bagInfo.saldoAtual !== undefined && bagInfo.saldoAtual !== null) 
+                                ? bagInfo.saldoAtual 
+                                : (bagInfo.pesoOriginal || 0);
+
+            row.querySelector('.qtd-bag').value = parseFloat(pesoDoBag).toFixed(2);
             row.querySelector('.data-bag').value = bagInfo.dataEntrada || '';
-            row.querySelector('.qtd-bag').value = bagInfo.saldoAtual;
+
             row.setAttribute('data-cor', bagInfo.cor || '');
             row.setAttribute('data-tipo', bagInfo.tipo || '');
             row.setAttribute('data-data-entrada', bagInfo.dataEntrada || '');
+            
             calcularSomaTotal();
         }
     }
@@ -562,7 +579,7 @@
 
         html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 250, height: 140 } }, (text) => {
             if (inputBagAtual) {
-                inputBagAtual.value = text;
+                inputBagAtual.value = text.trim();
                 buscarQuantidadeDoBag(inputBagAtual);
             }
             fecharLeitorCamera();
