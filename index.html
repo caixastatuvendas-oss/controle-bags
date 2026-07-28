@@ -5,124 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Estoque - Caixas Tatu</title>
 
-    <!-- Biblioteca para geração de Código de Barras (JsBarcode) -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-
-    <!-- Biblioteca para leitura de Código de Barras via Câmera (Html5QRCode) -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" defer></script>
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
 
     <style>
-        :root {
-            --primary: #1e3a8a;
-            --bg-color: #f1f5f9;
-            --border-color: #cbd5e1;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: #0f172a; padding: 15px; }
+        :root { --primary: #1e3a8a; --bg-color: #f1f5f9; --border-color: #cbd5e1; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg-color); color: #0f172a; padding: 12px; }
         .container { max-width: 950px; margin: 0 auto; }
 
-        header { background-color: var(--primary); color: white; padding: 15px; border-radius: 8px 8px 0 0; text-align: center; }
-        .tabs { display: flex; background: #e2e8f0; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-weight: bold; color: #475569; cursor: pointer; min-width: 150px; }
+        header { background-color: var(--primary); color: white; padding: 12px; border-radius: 8px 8px 0 0; text-align: center; }
+        .tabs { display: flex; background: #e2e8f0; border-bottom: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; padding: 12px 5px; border: none; background: none; font-weight: bold; color: #475569; cursor: pointer; font-size: 0.9rem; }
         .tab-btn.active { background: white; color: var(--primary); border-bottom: 3px solid var(--primary); }
 
-        .tab-content { display: none; background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .tab-content { display: none; background: white; padding: 15px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .tab-content.active { display: block; }
 
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px; }
         .form-group { display: flex; flex-direction: column; }
-        .form-group label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #334155; }
-        .form-group input, .form-group select { padding: 10px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 0.95rem; }
-        .form-group input[readonly] { background-color: #e2e8f0; cursor: not-allowed; }
+        .form-group label { font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; color: #334155; }
+        .form-group input, .form-group select { padding: 9px; border: 1px solid var(--border-color); border-radius: 5px; font-size: 0.95rem; }
+        .form-group input[readonly] { background-color: #f1f5f9; cursor: not-allowed; }
 
-        .btn { background-color: var(--primary); color: white; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn { background-color: var(--primary); color: white; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 8px; }
         .btn-success { background-color: #16a34a; }
         .btn-secondary { background-color: #475569; }
-        .btn-sm { padding: 5px 10px; font-size: 0.8rem; width: auto; margin-top: 0; display: inline-block; }
+        .btn-sm { padding: 6px 10px; font-size: 0.8rem; width: auto; margin-top: 0; display: inline-block; }
         .btn-camera { background-color: #0284c7; color: white; padding: 8px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn-reload { background-color: #d97706; color: white; padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem; margin-left: 5px; }
 
-        .alerta-erro {
-            background-color: #f87171; color: white; padding: 15px; border-radius: 8px;
-            font-weight: bold; font-size: 1.1rem; text-align: center; margin-bottom: 15px; display: none;
-        }
-
-        /* MODAL DA CÂMERA */
         #modalCamera {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); z-index: 9999; flex-direction: column;
+            background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column;
             align-items: center; justify-content: center; padding: 10px;
         }
-        #reader { width: 100%; max-width: 450px; background: white; border-radius: 8px; overflow: hidden; }
+        #reader { width: 100%; max-width: 400px; background: white; border-radius: 8px; overflow: hidden; }
 
-        .painel-impressao { background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center; }
+        .painel-impressao { background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; padding: 12px; margin-top: 15px; text-align: center; }
 
-        /* TABELA HISTÓRICO */
-        .tabela-historico { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .tabela-historico th, .tabela-historico td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 0.9rem; }
-        .tabela-historico th { background-color: #f1f5f9; font-weight: bold; color: #1e293b; }
+        .tabela-historico { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .tabela-historico th, .tabela-historico td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 0.85rem; }
+        .tabela-historico th { background-color: #f1f5f9; font-weight: bold; }
         .tabela-historico tr:nth-child(even) { background-color: #f8fafc; }
 
-        /* ETIQUETAS A4 */
-        #folhaA4 { display: none; width: 21cm; min-height: 29.7cm; padding: 1cm 0.6cm; background: white; margin: 20px auto; border: 1px solid #ccc; }
+        /* IMPRESSÃO A4 E FICHA */
+        #folhaA4 { display: none; width: 21cm; padding: 1cm 0.6cm; background: white; margin: 0 auto; }
         .grid-a4 { display: grid; grid-template-columns: repeat(3, 6.7cm); grid-auto-rows: 3.9cm; gap: 0.3cm; justify-content: center; }
-        
-        .etiqueta-box { 
-            width: 6.7cm; height: 3.9cm; border: 1px dashed #000; padding: 4px 6px; 
-            background: white; display: flex; flex-direction: column; 
-            justify-content: space-between; align-items: center; box-sizing: border-box; overflow: hidden; 
-        }
-
-        .etiqueta-header { width: 100%; font-size: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px; }
-        .etiqueta-info { text-align: left; font-size: 8.5px; line-height: 1.2; font-weight: bold; width: 100%; }
-        .barcode-box { width: 100%; display: flex; justify-content: center; align-items: center; }
+        .etiqueta-box { width: 6.7cm; height: 3.9cm; border: 1px dashed #000; padding: 4px 6px; background: white; display: flex; flex-direction: column; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .etiqueta-header { width: 100%; font-size: 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #000; }
+        .etiqueta-info { font-size: 8.5px; font-weight: bold; width: 100%; line-height: 1.2; }
+        .barcode-box { width: 100%; display: flex; justify-content: center; }
         .barcode-box svg { width: 100%; max-height: 1.3cm; }
 
-        /* FICHA DE MISTURA */
-        #folhaFichaMistura { display: none; width: 21cm; background: white; padding: 1cm; margin: 20px auto; border: 1px solid #000; font-family: Arial, sans-serif; }
+        #folhaFichaMistura { display: none; width: 21cm; background: white; padding: 1cm; margin: 0 auto; border: 1px solid #000; font-family: Arial, sans-serif; }
         .tabela-ficha { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        .tabela-ficha th, .tabela-ficha td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 12px; }
-        .tabela-ficha th { background-color: #f2f2f2; font-weight: bold; }
-        .cabecalho-ficha { background-color: #a4c2f4; text-align: center; font-weight: bold; font-size: 14px; padding: 8px; border: 1px solid #000; margin-bottom: -1px; }
-        .linha-info-ficha { display: flex; justify-content: space-between; border: 1px solid #000; padding: 6px 10px; font-size: 12px; font-weight: bold; background: #fff; }
+        .tabela-ficha th, .tabela-ficha td { border: 1px solid #000; padding: 5px; text-align: center; font-size: 11px; }
+        .tabela-ficha th { background-color: #f2f2f2; }
+        .cabecalho-ficha { background-color: #a4c2f4; text-align: center; font-weight: bold; font-size: 14px; padding: 6px; border: 1px solid #000; }
+        .linha-info-ficha { display: flex; justify-content: space-between; border: 1px solid #000; border-top: none; padding: 5px 10px; font-size: 12px; font-weight: bold; }
         .rodape-ficha { border: 1px solid #000; border-top: none; padding: 8px 10px; font-size: 12px; font-weight: bold; }
-        .box-check { display: inline-block; width: 16px; height: 16px; border: 1px solid #000; vertical-align: middle; text-align: center; line-height: 14px; font-size: 11px; margin-left: 4px; margin-right: 15px; }
+        .box-check { display: inline-block; width: 15px; height: 15px; border: 1px solid #000; text-align: center; line-height: 13px; font-size: 11px; margin: 0 10px 0 3px; }
 
         @media print {
-            @page { size: A4 portrait; margin: 8mm 5mm; }
-            body { background: white; padding: 0; margin: 0; }
+            @page { size: A4 portrait; margin: 5mm; }
+            body { background: white; padding: 0; }
             body * { visibility: hidden; }
             .imprimir-ativo, .imprimir-ativo * { visibility: visible !important; }
-            .imprimir-ativo { position: absolute; left: 0; top: 0; width: 100%; border: none !important; padding: 0 !important; margin: 0 !important; }
+            .imprimir-ativo { position: absolute; left: 0; top: 0; width: 100%; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header>
-        <h2>Caixas Tatu - Controle de Estoque</h2>
-    </header>
+    <header><h2>Caixas Tatu - Controle de Estoque</h2></header>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('entrada')">1. Entrada de MP</button>
-        <button class="tab-btn" onclick="switchTab('mistura')">2. Ficha de Mistura</button>
-        <button class="tab-btn" onclick="switchTab('historico')">3. Histórico e Consultas</button>
+        <button class="tab-btn active" onclick="switchTab('entrada')">1. Entrada MP</button>
+        <button class="tab-btn" onclick="switchTab('mistura')">2. Ficha Mistura</button>
+        <button class="tab-btn" onclick="switchTab('historico')">3. Consultas</button>
     </div>
 
     <!-- ABA 1: ENTRADA -->
     <div id="tab-entrada" class="tab-content active">
         <form id="formEntrada">
             <div class="form-grid">
-                <div class="form-group">
-                    <label>
-                        BAG Nº 
-                        <button type="button" class="btn-reload" onclick="carregarDadosEmCache()" title="Forçar Atualização">🔄 Atualizar</button>
-                    </label>
-                    <input type="text" id="bagNo" readonly value="Carregando...">
-                </div>
-                <div class="form-group"><label>Data de Entrada</label><input type="text" id="dataEntrada" readonly></div>
+                <div class="form-group"><label>BAG Nº</label><input type="text" id="bagNo" readonly value="Carregando..."></div>
+                <div class="form-group"><label>Data Entrada</label><input type="text" id="dataEntrada" readonly></div>
                 <div class="form-group">
                     <label>Cor</label>
                     <select id="corSelect" onchange="toggleOutro('corSelect', 'corOutro')" required>
@@ -164,174 +133,114 @@
                         <option value="Tatu">Tatu</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Nome do fornecedor"></div>
+                <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Fornecedor"></div>
             </div>
-            <button type="submit" id="btnSalvarEntrada" class="btn">Lançar Entrada e Adicionar à Fila</button>
+            <button type="submit" id="btnSalvarEntrada" class="btn">Lançar Entrada e Gerar Etiqueta</button>
         </form>
 
         <div class="painel-impressao">
-            <h3>🖨️ Fila de Impressão de Etiquetas (A4)</h3>
-            <p>Etiquetas acumuladas: <b id="qtdFila">0</b> / <b>18</b></p>
-            <br>
-            <button id="btnImprimirA4" class="btn btn-success" style="display:none;" onclick="imprimirFolhaA4()">🖨️ IMPRIMIR FOLHA A4 COMPLETA</button>
-            <button id="btnImprimirForcado" class="btn btn-secondary" style="display:none; margin-top:5px;" onclick="imprimirFolhaA4()">Imprimir Folha Incompleta Mesmo Assim</button>
+            <h3>🖨️ Fila de Impressão (Etiquetas A4)</h3>
+            <p>Fila atual: <b id="qtdFila">0</b> / <b>18</b></p>
+            <button id="btnImprimirA4" class="btn btn-success" style="display:none;" onclick="imprimirFolhaA4()">🖨️ IMPRIMIR FOLHA A4</button>
+            <button id="btnImprimirForcado" class="btn btn-secondary" style="display:none; margin-top:5px;" onclick="imprimirFolhaA4()">Imprimir Fila Incompleta</button>
         </div>
     </div>
 
     <!-- ABA 2: MISTURA -->
     <div id="tab-mistura" class="tab-content">
-        <div id="alertaBagJaBaixado" class="alerta-erro"></div>
-
         <form id="formMistura">
             <div class="form-grid">
-                <div class="form-group"><label>Nº Controle / Lote (Automático)</label><input type="text" id="noControle" readonly value="Carregando..."></div>
-                <div class="form-group"><label>Data da Mistura</label><input type="text" id="dataMistura" readonly></div>
-                <div class="form-group"><label>Cor Final da Mistura</label><input type="text" id="corMistura" required placeholder="Ex: Preto"></div>
+                <div class="form-group"><label>Nº Lote</label><input type="text" id="noControle" readonly value="Carregando..."></div>
+                <div class="form-group"><label>Data Mistura (Baixa)</label><input type="text" id="dataMistura" readonly></div>
+                <div class="form-group"><label>Cor Final</label><input type="text" id="corMistura" required placeholder="Ex: Preto"></div>
             </div>
 
-            <p><b>BAGs Utilizados (Com Saldo Restante):</b></p>
-            <button type="button" class="btn-camera" onclick="abrirLeitorCamera()">📷 Abrir Câmera para Leitura</button>
+            <p><b>BAGs Utilizados:</b></p>
+            <button type="button" class="btn-camera" onclick="abrirLeitorCamera()">📷 Ler via Câmera</button>
 
-            <table id="tabelaBags" style="width:100%; border-collapse:collapse; margin-bottom:10px;">
-                <thead>
-                    <tr style="background:#f8fafc; font-size:12px;"><th>Nº BAG (Bipe, Escaneie ou Digite)</th><th>QNTDD (KG)</th><th>Remover</th></tr>
-                </thead>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                <thead><tr style="background:#f8fafc; font-size:11px;"><th>BAG (Bipe ou Digite)</th><th>Data Entrada</th><th>QNTDD (KG)</th><th>X</th></tr></thead>
                 <tbody id="bodyBags"></tbody>
             </table>
             
             <datalist id="listaBagsData"></datalist>
-
-            <button type="button" class="btn btn-secondary" onclick="adicionarLinhaBag(true)">+ Adicionar Outro BAG</button>
+            <button type="button" class="btn btn-secondary" onclick="adicionarLinhaBag(true)">+ Adicionar BAG</button>
 
             <div class="form-grid" style="margin-top:15px;">
+                <div class="form-group"><label>Total (KG)</label><input type="number" step="0.01" id="qtdFinalKg" readonly style="background:#f8fafc; font-weight:bold; color:#1e3a8a;"></div>
                 <div class="form-group">
-                    <label>Qtd Total Gerada (KG)</label>
-                    <input type="number" step="0.01" id="qtdFinalKg" required placeholder="0.00" readonly style="background-color: #f8fafc; font-weight: bold; color: #1e3a8a;">
+                    <label>Foi para produção?</label>
+                    <select id="foiProducao"><option value="Sim">Sim</option><option value="Não">Não</option></select>
                 </div>
                 <div class="form-group">
-                    <label>Mistura foi para produção?</label>
-                    <select id="foiProducao">
-                        <option value="Sim">Sim</option>
-                        <option value="Não">Não</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Qual caixa a ser produzida?</label>
-                    <select id="caixaProduzida">
-                        <option value="Tatu 10">Tatu 10</option>
-                        <option value="Tatu 23">Tatu 23</option>
-                        <option value="Outra">Outra</option>
-                    </select>
+                    <label>Caixa a ser produzida</label>
+                    <select id="caixaProduzida"><option value="Tatu 10">Tatu 10</option><option value="Tatu 23">Tatu 23</option><option value="Outra">Outra</option></select>
                 </div>
             </div>
 
-            <button type="submit" id="btnSalvarMistura" class="btn">Salvar e Imprimir Ficha de Mistura</button>
+            <button type="submit" class="btn">Salvar e Imprimir Ficha de Mistura</button>
         </form>
     </div>
 
-    <!-- ABA 3: HISTÓRICO E CONSULTAS -->
+    <!-- ABA 3: HISTÓRICO -->
     <div id="tab-historico" class="tab-content">
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="subAbaHistorico('etiquetas')">🏷️ Histórico de Etiquetas / BAGs</button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="subAbaHistorico('fichas')">📋 Histórico de Fichas de Mistura</button>
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="subAbaHistorico('etiquetas')">🏷️ Histórico Etiquetas</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="subAbaHistorico('fichas')">📋 Histórico Fichas</button>
         </div>
 
-        <input type="text" id="filtroHistorico" placeholder="🔍 Digite para buscar por BAG, Lote, Cor ou Fornecedor..." oninput="filtrarTabelaHistorico()" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 5px;">
+        <input type="text" id="filtroHistorico" placeholder="🔍 Filtrar..." oninput="filtrarTabelaHistorico()" style="width:100%; padding:8px; margin-bottom:12px; border:1px solid var(--border-color); border-radius:5px;">
 
-        <!-- SUB-ABA ETIQUETAS -->
         <div id="sub-historico-etiquetas">
-            <h3>Histórico de BAGs Lançados (Reimpressão)</h3>
             <div style="overflow-x:auto;">
                 <table class="tabela-historico">
-                    <thead>
-                        <tr>
-                            <th>Nº BAG</th>
-                            <th>Data</th>
-                            <th>Cor</th>
-                            <th>Tipo</th>
-                            <th>Peso (KG)</th>
-                            <th>Fornecedor</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bodyHistoricoEtiquetas">
-                        <tr><td colspan="7" style="text-align:center;">Nenhum registro encontrado.</td></tr>
-                    </tbody>
+                    <thead><tr><th>BAG</th><th>Data Entrada</th><th>Cor</th><th>Tipo</th><th>Peso</th><th>Ação</th></tr></thead>
+                    <tbody id="bodyHistoricoEtiquetas"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- SUB-ABA FICHAS -->
         <div id="sub-historico-fichas" style="display:none;">
-            <h3>Histórico de Fichas de Mistura / Lotes</h3>
             <div style="overflow-x:auto;">
                 <table class="tabela-historico">
-                    <thead>
-                        <tr>
-                            <th>Nº Lote / Controle</th>
-                            <th>Data</th>
-                            <th>Cor Mistura</th>
-                            <th>Qtd Total (KG)</th>
-                            <th>Produção</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bodyHistoricoFichas">
-                        <tr><td colspan="6" style="text-align:center;">Nenhuma ficha cadastrada.</td></tr>
-                    </tbody>
+                    <thead><tr><th>Lote</th><th>Data Baixa</th><th>Cor Final</th><th>Total (KG)</th><th>Produção</th><th>Ação</th></tr></thead>
+                    <tbody id="bodyHistoricoFichas"></tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- FOLHAS DE IMPRESSÃO (INVISÍVEIS ATÉ A IMPRESSÃO) -->
+<!-- IMPRESSÃO A4 E FICHA -->
 <div id="folhaA4"><div class="grid-a4" id="gridEtiquetaConteudo"></div></div>
 
 <div id="folhaFichaMistura">
     <div class="cabecalho-ficha">CAIXAS TATU - CONTROLE DE SAIDA DE MATERIA PRIMA PRA MISTURA</div>
     <div class="linha-info-ficha">
-        <span>DATA DA MISTURA: <span id="printDataMistura"></span></span>
+        <span>DATA BAIXA: <span id="printDataMistura"></span></span>
         <span>COR: <span id="printCorMistura"></span></span>
         <span>Nº CONTROLE: <span id="printNoControle"></span></span>
     </div>
-    
     <table class="tabela-ficha">
         <thead>
-            <tr>
-                <th style="width: 15%;">Nº BAG</th>
-                <th style="width: 15%;">COR</th>
-                <th style="width: 15%;">TIPO</th>
-                <th style="width: 15%;">QNTDD (KG)</th>
-                <th style="width: 20%;">MISTURA FINAL</th>
-                <th style="width: 20%;">QNTDD (KG)</th>
-            </tr>
+            <tr><th>Nº BAG</th><th>DATA ENTRADA</th><th>COR</th><th>TIPO</th><th>QNTDD (KG)</th><th>MISTURA FINAL</th><th>QNTDD TOTAL (KG)</th></tr>
         </thead>
         <tbody id="printBodyMistura"></tbody>
     </table>
-
     <div class="rodape-ficha">
-        <div style="margin-bottom: 8px;">
-            Mistura foi para produção: 
-            Sim <span class="box-check" id="checkSim"></span> 
-            Não <span class="box-check" id="checkNao"></span>
-        </div>
-        <div>
-            Qual Caixa a ser produzida: 
-            Tatu 10 <span class="box-check" id="checkTatu10"></span> 
-            Tatu 23 <span class="box-check" id="checkTatu23"></span>
-        </div>
+        <div>Mistura foi para produção: Sim <span class="box-check" id="checkSim"></span> Não <span class="box-check" id="checkNao"></span></div>
+        <div style="margin-top:4px;">Qual Caixa: Tatu 10 <span class="box-check" id="checkTatu10"></span> Tatu 23 <span class="box-check" id="checkTatu23"></span></div>
     </div>
 </div>
 
 <!-- MODAL CÂMERA -->
 <div id="modalCamera">
     <div id="reader"></div>
-    <button class="btn btn-secondary" style="max-width: 450px; margin-top: 10px;" onclick="fecharLeitorCamera()">Fechar Câmera</button>
+    <button class="btn btn-secondary" style="max-width:400px; margin-top:10px;" onclick="fecharLeitorCamera()">Fechar Câmera</button>
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby_kFNlJiHeb8VBRodvF_e7GcCysF_Fw7Ak7ffcc4AD3VRXeYjN2s630mnau_CcORo/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuT9pnXVYb0LAjSo92L3bd6N8mZEQ64p5jgP1-OcK9iLhNcuhhqadlyiU-fWISjA/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let historicoEntradasGeral = JSON.parse(localStorage.getItem('historicoEntradasGeral') || "[]");
@@ -344,17 +253,29 @@
         document.getElementById('dataEntrada').value = dataHoje;
         document.getElementById('dataMistura').value = dataHoje;
 
-        carregarDadosEmCache();
+        if (historicoEntradasGeral.length > 0) {
+            const numUltimo = parseInt(historicoEntradasGeral[0].bagNo.replace("BAG-", ""), 10);
+            if(!isNaN(numUltimo)) document.getElementById('bagNo').value = "BAG-" + String(numUltimo + 1).padStart(4, '0');
+        } else {
+            document.getElementById('bagNo').value = "BAG-0001";
+        }
+
+        if (historicoFichasGeral.length > 0) {
+            const numLote = parseInt(historicoFichasGeral[0].noControle.replace("LOTE-", ""), 10);
+            if(!isNaN(numLote)) document.getElementById('noControle').value = "LOTE-" + (numLote + 1);
+        } else {
+            document.getElementById('noControle').value = "LOTE-1001";
+        }
+
         adicionarLinhaBag(false);
         renderizarHistoricoEtiquetas();
         renderizarHistoricoFichas();
+        sincronizarComGoogleSheets();
     });
 
-    // SISTEMA DE ABAS E SUB-ABAS
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
         if(tab === 'entrada') {
             document.querySelectorAll('.tab-btn')[0].classList.add('active');
             document.getElementById('tab-entrada').classList.add('active');
@@ -368,120 +289,98 @@
     }
 
     function subAbaHistorico(tipo) {
-        if(tipo === 'etiquetas') {
-            document.getElementById('sub-historico-etiquetas').style.display = 'block';
-            document.getElementById('sub-historico-fichas').style.display = 'none';
-        } else {
-            document.getElementById('sub-historico-etiquetas').style.display = 'none';
-            document.getElementById('sub-historico-fichas').style.display = 'block';
-        }
+        document.getElementById('sub-historico-etiquetas').style.display = tipo === 'etiquetas' ? 'block' : 'none';
+        document.getElementById('sub-historico-fichas').style.display = tipo === 'fichas' ? 'block' : 'none';
     }
 
-    // CARREGAMENTO SEGURO
-    function carregarDadosEmCache() {
-        const inputBag = document.getElementById('bagNo');
-        const inputLote = document.getElementById('noControle');
-        
-        inputBag.value = "Carregando...";
-        inputLote.value = "Carregando...";
-
+    function sincronizarComGoogleSheets() {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
 
         fetch(APPS_SCRIPT_URL, { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
             clearTimeout(timeoutId);
-            if(data.proximoBag) inputBag.value = data.proximoBag;
-            if(data.proximoLote) inputLote.value = data.proximoLote;
-            
-            const datalist = document.getElementById('listaBagsData');
-            datalist.innerHTML = '';
+            if(data.proximoBag) document.getElementById('bagNo').value = data.proximoBag;
+            if(data.proximoLote) document.getElementById('noControle').value = data.proximoLote;
             
             if (data.detalhesBags) {
                 cacheBags = data.detalhesBags;
+                const datalist = document.getElementById('listaBagsData');
+                datalist.innerHTML = '';
                 Object.keys(cacheBags).forEach(bagCode => {
-                    const info = cacheBags[bagCode];
-                    if (info.saldoAtual > 0) {
+                    if (cacheBags[bagCode].saldoAtual > 0) {
                         const option = document.createElement('option');
                         option.value = bagCode;
-                        option.textContent = `${bagCode} (${info.saldoAtual} KG restantes)`;
                         datalist.appendChild(option);
                     }
                 });
             }
         })
-        .catch(err => {
-            if (inputBag.value === "Carregando...") {
-                inputBag.value = "BAG-" + String(Math.floor(Math.random() * 800) + 100).padStart(4, '0');
-                inputLote.value = "LOTE-1001";
-            }
-        });
+        .catch(() => {});
     }
 
-    // ENTRADA DE MP
+    // ENTRADA MP
     document.getElementById('formEntrada').addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const bagNo = document.getElementById('bagNo').value;
-        const corSelect = document.getElementById('corSelect').value;
-        const cor = corSelect === 'Outras' ? document.getElementById('corOutro').value : corSelect;
-        const tipoSelect = document.getElementById('tipoSelect').value;
-        const tipo = tipoSelect === 'Outra' ? document.getElementById('tipoOutro').value : tipoSelect;
-        const peso = document.getElementById('peso').value;
-        const maoDeObra = document.getElementById('maoDeObra').value;
-        const fornecedor = document.getElementById('fornecedor').value;
-        const dataEntrada = document.getElementById('dataEntrada').value;
+        const itemEntrada = {
+            bagNo: document.getElementById('bagNo').value,
+            cor: document.getElementById('corSelect').value === 'Outras' ? document.getElementById('corOutro').value : document.getElementById('corSelect').value,
+            tipo: document.getElementById('tipoSelect').value === 'Outra' ? document.getElementById('tipoOutro').value : document.getElementById('tipoSelect').value,
+            peso: document.getElementById('peso').value,
+            maoDeObra: document.getElementById('maoDeObra').value,
+            fornecedor: document.getElementById('fornecedor').value,
+            dataEntrada: document.getElementById('dataEntrada').value
+        };
 
-        const itemEntrada = { bagNo, cor, tipo, peso, maoDeObra, fornecedor, dataEntrada };
+        filaEtiquetas.push(itemEntrada);
+        historicoEntradasGeral.unshift(itemEntrada);
+        localStorage.setItem('historicoEntradasGeral', JSON.stringify(historicoEntradasGeral));
 
         fetch(APPS_SCRIPT_URL, {
             method: 'POST', mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tipoAcao: 'ENTRADA_MATERIA_PRIMA', ...itemEntrada })
-        }).then(() => {
-            filaEtiquetas.push(itemEntrada);
-            historicoEntradasGeral.unshift(itemEntrada);
-            localStorage.setItem('historicoEntradasGeral', JSON.stringify(historicoEntradasGeral));
-            
-            atualizarFilaImpressao();
-            renderizarHistoricoEtiquetas();
-            alert(`BAG ${bagNo} gravado com sucesso!`);
-            document.getElementById('peso').value = '';
-            document.getElementById('fornecedor').value = '';
-            carregarDadosEmCache();
         });
+
+        atualizarFilaImpressao();
+        renderizarHistoricoEtiquetas();
+        alert(`BAG ${itemEntrada.bagNo} gravado!`);
+        document.getElementById('peso').value = '';
+        
+        const proximo = parseInt(itemEntrada.bagNo.replace("BAG-", ""), 10) + 1;
+        document.getElementById('bagNo').value = "BAG-" + String(proximo).padStart(4, '0');
     });
 
-    // FICHA DE MISTURA
+    // FICHA MISTURA
     document.getElementById('formMistura').addEventListener('submit', function(e) {
         e.preventDefault();
         const bags = [];
-        const linhasTabelaPrint = [];
 
         document.querySelectorAll('#bodyBags tr').forEach(row => {
             const inputs = row.querySelectorAll('input');
             const bagNo = inputs[0].value;
-            const qtdKg = inputs[1].value;
-            const cor = row.getAttribute('data-cor') || '';
-            const tipo = row.getAttribute('data-tipo') || '';
-            const fornecedor = row.getAttribute('data-fornecedor') || '';
-
+            const qtdKg = inputs[2].value;
             if(bagNo) {
-                bags.push({ bagNo, qtdKg, cor, tipo, fornecedor });
-                linhasTabelaPrint.push({ bagNo, cor, tipo, fornecedor, qtdKg });
+                bags.push({ 
+                    bagNo, 
+                    qtdKg, 
+                    cor: row.getAttribute('data-cor') || '', 
+                    tipo: row.getAttribute('data-tipo') || '',
+                    dataEntrada: row.getAttribute('data-data-entrada') || ''
+                });
             }
         });
 
-        const noControle = document.getElementById('noControle').value;
-        const corMistura = document.getElementById('corMistura').value;
-        const qtdFinalKg = document.getElementById('qtdFinalKg').value;
-        const foiProducao = document.getElementById('foiProducao').value;
-        const caixaProduzida = document.getElementById('caixaProduzida').value;
-        const dataMistura = document.getElementById('dataMistura').value;
-
         const fichaObjeto = {
-            noControle, dataMistura, corMistura, qtdFinalKg, foiProducao, caixaProduzida, componentes: bags
+            noControle: document.getElementById('noControle').value,
+            dataMistura: document.getElementById('dataMistura').value,
+            corMistura: document.getElementById('corMistura').value,
+            qtdFinalKg: document.getElementById('qtdFinalKg').value,
+            foiProducao: document.getElementById('foiProducao').value,
+            caixaProduzida: document.getElementById('caixaProduzida').value,
+            componentes: bags
         };
 
         fetch(APPS_SCRIPT_URL, {
@@ -494,90 +393,56 @@
         localStorage.setItem('historicoFichasGeral', JSON.stringify(historicoFichasGeral));
         renderizarHistoricoFichas();
 
-        gerarEImprimirFicha(dataMistura, corMistura, noControle, linhasTabelaPrint, qtdFinalKg, foiProducao, caixaProduzida);
+        const proximoLote = parseInt(fichaObjeto.noControle.replace("LOTE-", ""), 10) + 1;
+        document.getElementById('noControle').value = "LOTE-" + proximoLote;
+
+        gerarEImprimirFicha(fichaObjeto.dataMistura, fichaObjeto.corMistura, fichaObjeto.noControle, bags, fichaObjeto.qtdFinalKg, fichaObjeto.foiProducao, fichaObjeto.caixaProduzida);
     });
 
-    // RENDERIZAR TABELAS DE HISTÓRICO
     function renderizarHistoricoEtiquetas() {
         const tbody = document.getElementById('bodyHistoricoEtiquetas');
-        tbody.innerHTML = '';
+        tbody.innerHTML = historicoEntradasGeral.length === 0 ? '<tr><td colspan="6" style="text-align:center;">Vazio</td></tr>' : '';
 
-        if(historicoEntradasGeral.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhum registro no histórico.</td></tr>';
-            return;
-        }
-
-        historicoEntradasGeral.forEach((item, idx) => {
+        historicoEntradasGeral.slice(0, 30).forEach((item, idx) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${item.bagNo}</b></td>
-                <td>${item.dataEntrada}</td>
-                <td>${item.cor}</td>
-                <td>${item.tipo}</td>
-                <td>${item.peso} KG</td>
-                <td>${item.fornecedor}</td>
-                <td>
-                    <button class="btn btn-secondary btn-sm" onclick="reimprimirEtiquetaUnica(${idx})">🖨️ Etiqueta</button>
-                </td>
-            `;
+            tr.innerHTML = `<td><b>${item.bagNo}</b></td><td>${item.dataEntrada}</td><td>${item.cor}</td><td>${item.tipo}</td><td>${item.peso} KG</td><td><button class="btn btn-secondary btn-sm" onclick="reimprimirEtiquetaUnica(${idx})">🖨️</button></td>`;
             tbody.appendChild(tr);
         });
     }
 
     function renderizarHistoricoFichas() {
         const tbody = document.getElementById('bodyHistoricoFichas');
-        tbody.innerHTML = '';
+        tbody.innerHTML = historicoFichasGeral.length === 0 ? '<tr><td colspan="6" style="text-align:center;">Vazio</td></tr>' : '';
 
-        if(historicoFichasGeral.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhuma ficha gravada no histórico.</td></tr>';
-            return;
-        }
-
-        historicoFichasGeral.forEach((item, idx) => {
+        historicoFichasGeral.slice(0, 30).forEach((item, idx) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${item.noControle}</b></td>
-                <td>${item.dataMistura}</td>
-                <td>${item.corMistura}</td>
-                <td>${item.qtdFinalKg} KG</td>
-                <td>${item.foiProducao} (${item.caixaProduzida})</td>
-                <td>
-                    <button class="btn btn-secondary btn-sm" onclick="reimprimirFichaHistorico(${idx})">🔍 Ver / Reimprimir Ficha</button>
-                </td>
-            `;
+            tr.innerHTML = `<td><b>${item.noControle}</b></td><td>${item.dataMistura}</td><td>${item.corMistura}</td><td>${item.qtdFinalKg} KG</td><td>${item.foiProducao}</td><td><button class="btn btn-secondary btn-sm" onclick="reimprimirFichaHistorico(${idx})">🔍 Ver</button></td>`;
             tbody.appendChild(tr);
         });
     }
 
     function filtrarTabelaHistorico() {
         const termo = document.getElementById('filtroHistorico').value.toLowerCase();
-        
         document.querySelectorAll('.tabela-historico tbody tr').forEach(tr => {
-            const texto = tr.innerText.toLowerCase();
-            tr.style.display = texto.includes(termo) ? '' : 'none';
+            tr.style.display = tr.innerText.toLowerCase().includes(termo) ? '' : 'none';
         });
     }
 
     function reimprimirEtiquetaUnica(idx) {
-        const item = historicoEntradasGeral[idx];
-        filaEtiquetas = [item];
+        filaEtiquetas = [historicoEntradasGeral[idx]];
         imprimirFolhaA4();
     }
 
     function reimprimirFichaHistorico(idx) {
-        const ficha = historicoFichasGeral[idx];
-        gerarEImprimirFicha(
-            ficha.dataMistura, ficha.corMistura, ficha.noControle, 
-            ficha.componentes, ficha.qtdFinalKg, ficha.foiProducao, ficha.caixaProduzida
-        );
+        const f = historicoFichasGeral[idx];
+        gerarEImprimirFicha(f.dataMistura, f.corMistura, f.noControle, f.componentes, f.qtdFinalKg, f.foiProducao, f.caixaProduzida);
     }
 
-    // MANIPULAÇÃO DE IMPRESSÃO
     function atualizarFilaImpressao() {
         const qtd = filaEtiquetas.length;
         document.getElementById('qtdFila').innerText = qtd;
-        if (qtd > 0) document.getElementById('btnImprimirForcado').style.display = 'inline-block';
-        if (qtd >= 18) document.getElementById('btnImprimirA4').style.display = 'inline-block';
+        document.getElementById('btnImprimirForcado').style.display = qtd > 0 ? 'inline-block' : 'none';
+        document.getElementById('btnImprimirA4').style.display = qtd >= 18 ? 'inline-block' : 'none';
     }
 
     function imprimirFolhaA4() {
@@ -592,27 +457,21 @@
             box.innerHTML = `
                 <div class="etiqueta-header">CAIXAS TATU</div>
                 <div class="etiqueta-info">
-                    <p><b>BAG:</b> ${item.bagNo} &nbsp;|&nbsp; <b>DATA:</b> ${item.dataEntrada}</p>
-                    <p><b>COR:</b> ${item.cor} &nbsp;|&nbsp; <b>TIPO:</b> ${item.tipo}</p>
-                    <p><b>PESO:</b> ${item.peso} KG &nbsp;|&nbsp; <b>M.O:</b> ${item.maoDeObra}</p>
+                    <p><b>BAG:</b> ${item.bagNo} | <b>DATA:</b> ${item.dataEntrada}</p>
+                    <p><b>COR:</b> ${item.cor} | <b>TIPO:</b> ${item.tipo}</p>
+                    <p><b>PESO:</b> ${item.peso} KG | <b>M.O:</b> ${item.maoDeObra}</p>
                 </div>
                 <div class="barcode-box"><svg id="${barcodeId}"></svg></div>
             `;
             grid.appendChild(box);
-
-            JsBarcode(`#${barcodeId}`, item.bagNo, {
-                format: "CODE128", width: 1.8, height: 35, displayValue: true, fontSize: 11, margin: 2
-            });
+            if(window.JsBarcode) {
+                JsBarcode(`#${barcodeId}`, item.bagNo, { format: "CODE128", width: 1.8, height: 35, displayValue: true, fontSize: 11, margin: 2 });
+            }
         });
 
         folha.style.display = 'block';
         folha.classList.add('imprimir-ativo');
-
-        setTimeout(() => {
-            window.print();
-            folha.classList.remove('imprimir-ativo');
-            folha.style.display = 'none';
-        }, 500);
+        setTimeout(() => { window.print(); folha.classList.remove('imprimir-ativo'); folha.style.display = 'none'; }, 300);
     }
 
     function gerarEImprimirFicha(data, cor, noControle, componentes, totalKg, foiProducao, caixa) {
@@ -622,29 +481,15 @@
 
         const printBody = document.getElementById('printBodyMistura');
         printBody.innerHTML = '';
-
         const totalLinhas = Math.max(componentes.length, 10);
 
         for (let i = 0; i < totalLinhas; i++) {
-            const item = componentes[i] || { bagNo: '', cor: '', tipo: '', qtdKg: '' };
+            const item = componentes[i] || { bagNo: '', dataEntrada: '', cor: '', tipo: '', qtdKg: '' };
             const tr = document.createElement('tr');
-
             if (i === 0) {
-                tr.innerHTML = `
-                    <td>${item.bagNo}</td>
-                    <td>${item.cor || ''}</td>
-                    <td>${item.tipo || ''}</td>
-                    <td>${item.qtdKg}</td>
-                    <td rowspan="${totalLinhas}" style="vertical-align: middle; font-weight: bold;">${cor}</td>
-                    <td rowspan="${totalLinhas}" style="vertical-align: middle; font-weight: bold;">${totalKg} KG</td>
-                `;
+                tr.innerHTML = `<td>${item.bagNo}</td><td>${item.dataEntrada || ''}</td><td>${item.cor || ''}</td><td>${item.tipo || ''}</td><td>${item.qtdKg}</td><td rowspan="${totalLinhas}" style="vertical-align:middle; font-weight:bold;">${cor}</td><td rowspan="${totalLinhas}" style="vertical-align:middle; font-weight:bold;">${totalKg} KG</td>`;
             } else {
-                tr.innerHTML = `
-                    <td>${item.bagNo}</td>
-                    <td>${item.cor || ''}</td>
-                    <td>${item.tipo || ''}</td>
-                    <td>${item.qtdKg}</td>
-                `;
+                tr.innerHTML = `<td>${item.bagNo}</td><td>${item.dataEntrada || ''}</td><td>${item.cor || ''}</td><td>${item.tipo || ''}</td><td>${item.qtdKg}</td>`;
             }
             printBody.appendChild(tr);
         }
@@ -657,23 +502,15 @@
         const folhaFicha = document.getElementById('folhaFichaMistura');
         folhaFicha.style.display = 'block';
         folhaFicha.classList.add('imprimir-ativo');
-
-        setTimeout(() => {
-            window.print();
-            folhaFicha.classList.remove('imprimir-ativo');
-            folhaFicha.style.display = 'none';
-        }, 500);
+        setTimeout(() => { window.print(); folhaFicha.classList.remove('imprimir-ativo'); folhaFicha.style.display = 'none'; }, 300);
     }
 
-    // AUXILIARES DE CAMPO E CÂMERA
     function toggleOutro(selectId, inputId) {
         const select = document.getElementById(selectId);
         const input = document.getElementById(inputId);
-        if (select.value === 'Outras' || select.value === 'Outra') {
-            input.style.display = 'block'; input.required = true;
-        } else {
-            input.style.display = 'none'; input.required = false;
-        }
+        const mostrar = select.value === 'Outras' || select.value === 'Outra';
+        input.style.display = mostrar ? 'block' : 'none';
+        input.required = mostrar;
     }
 
     function adicionarLinhaBag(focar = false) {
@@ -681,74 +518,55 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <div style="display:flex; gap:5px;">
-                    <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" 
-                           placeholder="Bipe ou digite..." onkeydown="tratarTeclarEnter(event, this)" 
-                           onchange="buscarQuantidadeDoBag(this)" required style="width:100%">
-                    <button type="button" onclick="abrirLeitorCamera(this.previousElementSibling)" style="padding:0 8px; cursor:pointer;">📷</button>
+                <div style="display:flex; gap:4px;">
+                    <input type="text" name="bag_no[]" class="input-bag" list="listaBagsData" placeholder="Bipe ou digite..." onchange="buscarQuantidadeDoBag(this)" required style="width:100%">
+                    <button type="button" onclick="abrirLeitorCamera(this.previousElementSibling)" style="padding:0 6px;">📷</button>
                 </div>
             </td>
+            <td><input type="text" class="data-bag" readonly style="width:100%; background:#f1f5f9; font-size:0.8rem;" placeholder="-"></td>
             <td><input type="number" step="0.01" name="bag_qtd[]" class="qtd-bag" oninput="calcularSomaTotal()" required style="width:100%" placeholder="0.00"></td>
-            <td><button type="button" onclick="removerLinha(this)" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">X</button></td>
+            <td><button type="button" onclick="removerLinha(this)" style="color:red; background:none; border:none; font-weight:bold;">X</button></td>
         `;
         tbody.appendChild(tr);
         if (focar) tr.querySelector('.input-bag').focus();
     }
 
-    function tratarTeclarEnter(event, input) {
-        if (event.key === 'Enter') { event.preventDefault(); buscarQuantidadeDoBag(input); }
-    }
-
     function buscarQuantidadeDoBag(inputBag) {
-        let rawValue = inputBag.value.trim();
-        if(!rawValue) return;
-
-        let codigoBag = rawValue.toUpperCase().split(' ')[0];
+        let codigoBag = inputBag.value.trim().toUpperCase().split(' ')[0];
         inputBag.value = codigoBag;
-
         const row = inputBag.closest('tr');
-        const inputQtd = row.querySelector('.qtd-bag');
         const bagInfo = cacheBags[codigoBag];
-
+        
         if (bagInfo) {
-            inputQtd.value = bagInfo.saldoAtual;
+            row.querySelector('.data-bag').value = bagInfo.dataEntrada || '';
+            row.querySelector('.qtd-bag').value = bagInfo.saldoAtual;
             row.setAttribute('data-cor', bagInfo.cor || '');
             row.setAttribute('data-tipo', bagInfo.tipo || '');
+            row.setAttribute('data-data-entrada', bagInfo.dataEntrada || '');
             calcularSomaTotal();
         }
     }
 
     function calcularSomaTotal() {
         let total = 0;
-        document.querySelectorAll('.qtd-bag').forEach(input => {
-            const valor = parseFloat(input.value);
-            if (!isNaN(valor)) total += valor;
-        });
+        document.querySelectorAll('.qtd-bag').forEach(i => { const v = parseFloat(i.value); if(!isNaN(v)) total += v; });
         document.getElementById('qtdFinalKg').value = total.toFixed(2);
     }
 
-    function removerLinha(btn) {
-        btn.closest('tr').remove();
-        calcularSomaTotal();
-    }
+    function removerLinha(btn) { btn.closest('tr').remove(); calcularSomaTotal(); }
 
     function abrirLeitorCamera(inputAlvo = null) {
         inputBagAtual = inputAlvo || document.querySelectorAll('.input-bag')[document.querySelectorAll('.input-bag').length - 1];
         document.getElementById('modalCamera').style.display = 'flex';
         if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
 
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 10, qrbox: { width: 280, height: 150 } }, 
-            (decodedText) => {
-                if (inputBagAtual) {
-                    inputBagAtual.value = decodedText;
-                    buscarQuantidadeDoBag(inputBagAtual);
-                }
-                fecharLeitorCamera();
-            },
-            () => {}
-        );
+        html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 250, height: 140 } }, (text) => {
+            if (inputBagAtual) {
+                inputBagAtual.value = text;
+                buscarQuantidadeDoBag(inputBagAtual);
+            }
+            fecharLeitorCamera();
+        }, () => {});
     }
 
     function fecharLeitorCamera() {
