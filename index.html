@@ -91,7 +91,7 @@
         <form id="formEntrada">
             <div class="form-grid">
                 <div class="form-group"><label>BAG Nº</label><input type="text" id="bagNo" readonly value="Carregando..."></div>
-                <div class="form-group"><label>Data Entrada</label><input type="text" id="dataEntrada" readonly></div>
+                <div class="form-group"><label>Data/Hora Entrada</label><input type="text" id="dataEntrada" readonly></div>
                 <div class="form-group">
                     <label>Cor</label>
                     <select id="corSelect" onchange="toggleOutro('corSelect', 'corOutro')" required>
@@ -154,7 +154,7 @@
         <form id="formMistura">
             <div class="form-grid">
                 <div class="form-group"><label>Nº Lote</label><input type="text" id="noControle" readonly value="Carregando..."></div>
-                <div class="form-group"><label>Data Mistura (Baixa)</label><input type="text" id="dataMistura" readonly></div>
+                <div class="form-group"><label>Data/Hora Mistura (Baixa)</label><input type="text" id="dataMistura" readonly></div>
                 <div class="form-group"><label>Cor Final</label><input type="text" id="corMistura" required placeholder="Ex: Preto"></div>
             </div>
 
@@ -243,7 +243,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwmVhletFIErmgN6cutA_6uobxC9ZHn1lygOjFVr1kqCCvhJT5EpAKUpIwuT0bm5Es/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPrzNmmlHrzHEzaJRGCKHpB9jkVQwQFNqra_Q9n3wxFycFX0yvtrOEyFrgvLcPj-I/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let historicoEntradasGeral = JSON.parse(localStorage.getItem('historicoEntradasGeral') || "[]");
@@ -252,7 +252,8 @@
     let inputBagAtual = null;
 
     document.addEventListener("DOMContentLoaded", function() {
-        const dataHoje = new Date().toLocaleDateString('pt-BR');
+        // ATUALIZAÇÃO: Usa toLocaleString para puxar data e hora exatas ao carregar
+        const dataHoje = new Date().toLocaleString('pt-BR');
         document.getElementById('dataEntrada').value = dataHoje;
         document.getElementById('dataMistura').value = dataHoje;
 
@@ -326,6 +327,10 @@
     document.getElementById('formEntrada').addEventListener('submit', function(e) {
         e.preventDefault();
 
+        // ATUALIZAÇÃO: Captura a Data e Hora exatas do momento de salvar a Entrada
+        const dataHoraExata = new Date().toLocaleString('pt-BR');
+        document.getElementById('dataEntrada').value = dataHoraExata;
+
         const itemEntrada = {
             bagNo: document.getElementById('bagNo').value,
             cor: document.getElementById('corSelect').value === 'Outras' ? document.getElementById('corOutro').value : document.getElementById('corSelect').value,
@@ -333,7 +338,7 @@
             peso: document.getElementById('peso').value,
             fornecedor: document.getElementById('fornecedor').value,
             maoDeObra: document.getElementById('maoDeObra').value === 'Outra' ? document.getElementById('maoDeObraOutro').value : document.getElementById('maoDeObra').value,
-            dataEntrada: document.getElementById('dataEntrada').value
+            dataEntrada: dataHoraExata
         };
 
         filaEtiquetas.push(itemEntrada);
@@ -348,7 +353,7 @@
 
         atualizarFilaImpressao();
         renderizarHistoricoEtiquetas();
-        alert(`BAG ${itemEntrada.bagNo} gravado!`);
+        alert(`BAG ${itemEntrada.bagNo} gravado com sucesso!`);
         document.getElementById('peso').value = '';
         
         const proximo = parseInt(itemEntrada.bagNo.replace("BAG-", ""), 10) + 1;
@@ -358,6 +363,10 @@
     // FICHA MISTURA
     document.getElementById('formMistura').addEventListener('submit', function(e) {
         e.preventDefault();
+
+        // ATUALIZAÇÃO: Captura a Data e Hora exatas do momento de dar baixa
+        const dataHoraExata = new Date().toLocaleString('pt-BR');
+        document.getElementById('dataMistura').value = dataHoraExata;
 
         const btnSalvar = document.getElementById('btnSalvarMistura');
         btnSalvar.disabled = true;
@@ -388,7 +397,7 @@
 
         const fichaObjeto = {
             noControle: document.getElementById('noControle').value,
-            dataMistura: document.getElementById('dataMistura').value,
+            dataMistura: dataHoraExata,
             corMistura: document.getElementById('corMistura').value,
             qtdFinalKg: document.getElementById('qtdFinalKg').value,
             foiProducao: document.getElementById('foiProducao').value,
@@ -567,11 +576,14 @@
             const pesoOriginal = parseFloat(bagInfo.pesoOriginal) || 0;
             const saldoAtual = bagInfo.saldoAtual !== undefined ? parseFloat(bagInfo.saldoAtual) : pesoOriginal;
 
-            // 🛑 Alerta 1: BAG consumido totalmente
+            // ATUALIZAÇÃO 🛑 Alerta 1: BAG consumido totalmente - Agora limpa e bloqueia a linha
             if (saldoAtual <= 0) {
-                alert(`⚠️ ALERTA: O ${codigoBag} JÁ FOI TOTALMENTE CONSUMIDO!\n\nData da Baixa: ${bagInfo.dataBaixa || 'Já registrada em lote anterior'}`);
-                row.querySelector('.qtd-bag').value = "0.00";
-                row.querySelector('.data-bag').value = bagInfo.dataEntrada || '';
+                alert(`⚠️ ALERTA: O ${codigoBag} JÁ FOI TOTALMENTE CONSUMIDO!\n\nData da Baixa: ${bagInfo.dataBaixa || 'Já registrada em lote anterior'}\n\nEste BAG não pode ser utilizado e será removido da seleção.`);
+                
+                inputBag.value = ""; 
+                row.querySelector('.qtd-bag').value = "";
+                row.querySelector('.data-bag').value = "";
+                
                 calcularSomaTotal();
                 return;
             }
