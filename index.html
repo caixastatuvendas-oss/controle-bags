@@ -119,11 +119,13 @@
                     <select id="tipoSelect" onchange="toggleOutro('tipoSelect', 'tipoOutro')" required>
                         <option value="">Selecione...</option>
                         <option value="Caixaria">Caixaria</option>
+                        <option value="Pigmento">Pigmento</option>
                         <option value="Outra">Outra...</option>
                     </select>
                     <input type="text" id="tipoOutro" placeholder="Digite a matéria-prima" style="display:none; margin-top:5px;">
                 </div>
                 <div class="form-group"><label>Peso (KG)</label><input type="number" step="0.01" id="peso" required placeholder="0.00"></div>
+                <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Fornecedor"></div>
                 <div class="form-group">
                     <label>Mão de Obra</label>
                     <select id="maoDeObra" required>
@@ -131,9 +133,10 @@
                         <option value="Não">Não</option>
                         <option value="Jesus">Jesus</option>
                         <option value="Tatu">Tatu</option>
+                        <option value="Resingeo">Resingeo</option>
+                        <option value="Moagem">Moagem</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedor" required placeholder="Fornecedor"></div>
             </div>
             <button type="submit" id="btnSalvarEntrada" class="btn">Lançar Entrada e Gerar Etiqueta</button>
         </form>
@@ -178,7 +181,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn">Salvar e Imprimir Ficha de Mistura</button>
+            <button type="submit" id="btnSalvarMistura" class="btn">Salvar e Imprimir Ficha de Mistura</button>
         </form>
     </div>
 
@@ -240,7 +243,7 @@
 </div>
 
 <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwN9pCT1aqvQaklGfbYmvhoTs_XoJzJDXcZtVc6EzD3HBeUHMxX8ieoATLSD4WFUcM/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAYoamfvEtenMPKU1bKJ-w2cugboL9QrH6lQK1PU3BYn1o4HqGPF2c8IIUTiHWdhA/exec";
     let filaEtiquetas = [];
     let cacheBags = {};
     let historicoEntradasGeral = JSON.parse(localStorage.getItem('historicoEntradasGeral') || "[]");
@@ -253,27 +256,12 @@
         document.getElementById('dataEntrada').value = dataHoje;
         document.getElementById('dataMistura').value = dataHoje;
 
-        if (historicoEntradasGeral.length > 0) {
-            const numUltimo = parseInt(historicoEntradasGeral[0].bagNo.replace("BAG-", ""), 10);
-            if(!isNaN(numUltimo)) document.getElementById('bagNo').value = "BAG-" + String(numUltimo + 1).padStart(4, '0');
-        } else {
-            document.getElementById('bagNo').value = "BAG-0001";
-        }
-
-        if (historicoFichasGeral.length > 0) {
-            const numLote = parseInt(historicoFichasGeral[0].noControle.replace("LOTE-", ""), 10);
-            if(!isNaN(numLote)) document.getElementById('noControle').value = "LOTE-" + (numLote + 1);
-        } else {
-            document.getElementById('noControle').value = "LOTE-1001";
-        }
-
         adicionarLinhaBag(false);
         renderizarHistoricoEtiquetas();
         renderizarHistoricoFichas();
         sincronizarComGoogleSheets();
     });
 
-    // Ouvinte para Scanners físicos (Leitor USB)
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && e.target.classList.contains('input-bag')) {
             e.preventDefault();
@@ -303,7 +291,7 @@
 
     function sincronizarComGoogleSheets() {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
         fetch(APPS_SCRIPT_URL, { signal: controller.signal })
         .then(res => res.json())
@@ -324,6 +312,13 @@
                     }
                 });
             }
+
+            // Carrega do Sheets o Histórico das Fichas
+            if (data.historicoFichas && data.historicoFichas.length > 0) {
+                historicoFichasGeral = data.historicoFichas;
+                localStorage.setItem('historicoFichasGeral', JSON.stringify(historicoFichasGeral));
+                renderizarHistoricoFichas();
+            }
         })
         .catch(() => {});
     }
@@ -337,8 +332,8 @@
             cor: document.getElementById('corSelect').value === 'Outras' ? document.getElementById('corOutro').value : document.getElementById('corSelect').value,
             tipo: document.getElementById('tipoSelect').value === 'Outra' ? document.getElementById('tipoOutro').value : document.getElementById('tipoSelect').value,
             peso: document.getElementById('peso').value,
-            maoDeObra: document.getElementById('maoDeObra').value,
             fornecedor: document.getElementById('fornecedor').value,
+            maoDeObra: document.getElementById('maoDeObra').value,
             dataEntrada: document.getElementById('dataEntrada').value
         };
 
@@ -364,8 +359,12 @@
     // FICHA MISTURA
     document.getElementById('formMistura').addEventListener('submit', function(e) {
         e.preventDefault();
-        const bags = [];
 
+        const btnSalvar = document.getElementById('btnSalvarMistura');
+        btnSalvar.disabled = true;
+        btnSalvar.innerText = "Salvando...";
+
+        const bags = [];
         document.querySelectorAll('#bodyBags tr').forEach(row => {
             const inputs = row.querySelectorAll('input');
             const bagNo = inputs[0].value;
@@ -380,6 +379,13 @@
                 });
             }
         });
+
+        if (bags.length === 0) {
+            alert("Adicione pelo menos um BAG à mistura.");
+            btnSalvar.disabled = false;
+            btnSalvar.innerText = "Salvar e Imprimir Ficha de Mistura";
+            return;
+        }
 
         const fichaObjeto = {
             noControle: document.getElementById('noControle').value,
@@ -405,6 +411,15 @@
         document.getElementById('noControle').value = "LOTE-" + proximoLote;
 
         gerarEImprimirFicha(fichaObjeto.dataMistura, fichaObjeto.corMistura, fichaObjeto.noControle, bags, fichaObjeto.qtdFinalKg, fichaObjeto.foiProducao, fichaObjeto.caixaProduzida);
+
+        // Limpeza dos campos
+        document.getElementById('corMistura').value = '';
+        document.getElementById('qtdFinalKg').value = '';
+        document.getElementById('bodyBags').innerHTML = '';
+        adicionarLinhaBag(false);
+
+        btnSalvar.disabled = false;
+        btnSalvar.innerText = "Salvar e Imprimir Ficha de Mistura";
     });
 
     function renderizarHistoricoEtiquetas() {
@@ -548,7 +563,6 @@
         const bagInfo = cacheBags[codigoBag];
         
         if (bagInfo) {
-            // Puxa o saldo atual do BAG ou o peso de entrada original
             const pesoDoBag = (bagInfo.saldoAtual !== undefined && bagInfo.saldoAtual !== null) 
                                 ? bagInfo.saldoAtual 
                                 : (bagInfo.pesoOriginal || 0);
